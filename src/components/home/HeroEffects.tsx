@@ -4,7 +4,8 @@
  * - leichtes Glühen (Bloom) für helle Stellen in den Fotos und die Sterne
  * - Warp: bei schnellem Scrollen ziehen sich Streifen strahlenförmig vom
  *   Bildmittelpunkt nach außen, die Farben trennen sich am Rand auf
- * - Vignette und feines Filmkorn
+ * - Vignette und feines Filmkorn – das Korn erst, wenn die Scroll-Animation
+ *   beginnt; das Startbild bleibt sauber
  *
  * Reihenfolge laut three.js: RenderPass → Effekte → OutputPass (Farbraum).
  */
@@ -23,6 +24,7 @@ const BLOOM_THRESHOLD = 0.72;// ab welcher Helligkeit etwas glüht
 const STREAK = 0.09;         // Länge der Warp-Streifen bei voller Geschwindigkeit
 const SPLIT = 0.012;         // Farbtrennung am Rand bei voller Geschwindigkeit
 const GRAIN = 0.045;         // Filmkorn
+const GRAIN_IN: [number, number] = [0.004, 0.06]; // Scroll-Fortschritt, in dem das Korn einblendet
 const MAX_DPR = 1.25;        // höchste Pixeldichte der Nachbearbeitung (spart Rechenzeit)
 
 const WarpShader = {
@@ -32,7 +34,7 @@ const WarpShader = {
     uTime: { value: 0 },
     uStreak: { value: STREAK },
     uSplit: { value: SPLIT },
-    uGrain: { value: GRAIN },
+    uGrain: { value: 0 },
     uAspect: { value: 1 },
   },
   vertexShader: /* glsl */ `
@@ -87,9 +89,11 @@ const WarpShader = {
 type Props = {
   /** Warp-Stärke 0–1, wird von der Kamera (Rig) aus der Scroll-Geschwindigkeit gesetzt */
   warp: RefObject<number>;
+  /** Scroll-Fortschritt der Hero-Animation 0–1 */
+  progress: RefObject<number>;
 };
 
-export default function HeroEffects({ warp }: Props) {
+export default function HeroEffects({ warp, progress }: Props) {
   const { gl, scene, camera, size } = useThree();
 
   const { composer, warpPass } = useMemo(() => {
@@ -120,6 +124,8 @@ export default function HeroEffects({ warp }: Props) {
   useFrame((state) => {
     warpPass.uniforms.uWarp.value = warp.current ?? 0;
     warpPass.uniforms.uTime.value = state.clock.elapsedTime;
+    const p = progress.current ?? 0;
+    warpPass.uniforms.uGrain.value = GRAIN * THREE.MathUtils.smoothstep(p, GRAIN_IN[0], GRAIN_IN[1]);
     composer.render();
   }, 1);
 

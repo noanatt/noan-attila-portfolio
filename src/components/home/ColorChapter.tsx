@@ -1,11 +1,11 @@
 'use client';
 /**
- * Ein Farbkapitel: Titel, Text, Farbmuster und eine Komposition aus Fotos
- * in verschiedenen Formen (Bogen, Kreis, Streifen, weiches Rechteck).
+ * Ein Farbkapitel: Titel, Text, Farbmuster und eine ruhige, redaktionelle
+ * Komposition aus 8 Fotos (nur Rechtecke, Kanten an einem gemeinsamen Raster).
  * Der Seitenhintergrund nimmt die Farbe des Kapitels an (Ambient).
  *
  * Das Layout ist ein Raster aus quadratischen Zellen (12 Spalten, Handy 6).
- * Jede Form hat einen festen Platz (SLOTS) und eine eigene Parallax-Geschwindigkeit.
+ * Jedes Foto hat einen festen Platz (SLOTS) und eine leichte Parallax-Bewegung.
  * Bei jedem zweiten Kapitel wird das Layout gespiegelt.
  */
 import Link from 'next/link';
@@ -13,13 +13,12 @@ import { useMemo, useRef } from 'react';
 import { chapterHighlights, type Chapter, type Photo as PhotoType } from '@/content/photos';
 import { site } from '@/content/site';
 import { gsap, SplitText, useGSAP, prefersReducedMotion } from '@/lib/gsap';
-import Photo, { type Shape } from '../Photo';
+import Photo from '../Photo';
 import { useLightbox } from '../Lightbox';
 import styles from './ColorChapter.module.css';
 
 type Area = [colStart: number, colEnd: number, rowStart: number, rowEnd: number];
 type Slot = {
-  shape: Shape;
   prefer: 'portrait' | 'landscape' | 'any';
   desktop: Area;
   mobile: Area;
@@ -28,16 +27,17 @@ type Slot = {
 };
 
 /* Platz für den Text: Desktop Spalten 1–6 / Zeilen 1–4, Handy Zeilen 1–6.
-   Bereiche: [Spalte von, Spalte bis, Zeile von, Zeile bis] (Rasterlinien) */
+   Bereiche: [Spalte von, Spalte bis, Zeile von, Zeile bis] (Rasterlinien).
+   Große Fotos bewegen sich langsam, kleine etwas schneller. */
 const SLOTS: Slot[] = [
-  { shape: 'arch',   prefer: 'portrait',  desktop: [8, 13, 1, 8],    mobile: [2, 7, 7, 13],  speed: 0.6 },
-  { shape: 'circle', prefer: 'any',       desktop: [2, 6, 5, 9],     mobile: [1, 4, 12, 15], speed: 1.4 },
-  { shape: 'wide',   prefer: 'landscape', desktop: [1, 7, 10, 14],   mobile: [1, 7, 16, 20], speed: 0.3 },
-  { shape: 'slit',   prefer: 'portrait',  desktop: [8, 10, 9, 15],   mobile: [1, 3, 21, 27], speed: 1.1 },
-  { shape: 'soft',   prefer: 'portrait',  desktop: [10, 13, 9, 13],  mobile: [3, 7, 21, 26], speed: 0.5 },
-  { shape: 'wide',   prefer: 'landscape', desktop: [3, 10, 16, 20],  mobile: [1, 7, 27, 31], speed: 0.2 },
-  { shape: 'circle', prefer: 'any',       desktop: [11, 13, 14, 16], mobile: [4, 7, 31, 34], speed: 1.6 },
-  { shape: 'arch',   prefer: 'portrait',  desktop: [10, 13, 17, 22], mobile: [1, 4, 32, 37], speed: 0.8 },
+  { prefer: 'portrait',  desktop: [8, 13, 1, 7],   mobile: [1, 6, 7, 13],  speed: 0.25 }, // groß, hoch
+  { prefer: 'any',       desktop: [4, 7, 5, 8],    mobile: [4, 7, 14, 17], speed: 0.7 },  // quadratisch
+  { prefer: 'landscape', desktop: [1, 7, 9, 13],   mobile: [1, 7, 18, 22], speed: 0.2 },  // quer
+  { prefer: 'portrait',  desktop: [8, 12, 8, 13],  mobile: [1, 4, 23, 27], speed: 0.45 }, // hoch
+  { prefer: 'portrait',  desktop: [2, 5, 14, 18],  mobile: [4, 7, 25, 29], speed: 0.6 },  // hoch, klein
+  { prefer: 'landscape', desktop: [6, 12, 14, 18], mobile: [1, 7, 30, 34], speed: 0.2 },  // quer
+  { prefer: 'any',       desktop: [10, 13, 19, 22],mobile: [1, 4, 35, 38], speed: 0.7 },  // quadratisch
+  { prefer: 'portrait',  desktop: [4, 8, 19, 24],  mobile: [4, 7, 35, 39], speed: 0.35 }, // hoch
 ];
 
 /**
@@ -70,8 +70,8 @@ export default function ColorChapter({ chapter, mirrored = false }: { chapter: C
     if (prefersReducedMotion()) return;
     gsap.utils.toArray<HTMLElement>('[data-speed]').forEach((el) => {
       const speed = Number(el.dataset.speed);
-      gsap.fromTo(el, { y: speed * 90 }, {
-        y: speed * -90,
+      gsap.fromTo(el, { y: speed * 80 }, {
+        y: speed * -80,
         ease: 'none',
         scrollTrigger: { trigger: el, start: 'top bottom', end: 'bottom top', scrub: true },
       });
@@ -140,7 +140,7 @@ export default function ColorChapter({ chapter, mirrored = false }: { chapter: C
             <button
               key={photo.id}
               type="button"
-              className={`${styles.item} ${styles[slot.shape]}`}
+              className={styles.item}
               data-speed={slot.speed}
               style={{
                 ['--d' as string]: `${d[2]} / ${d[0]} / ${d[3]} / ${d[1]}`,
@@ -150,7 +150,7 @@ export default function ColorChapter({ chapter, mirrored = false }: { chapter: C
               aria-label={`${chapter.title}: Foto ${i + 1} öffnen`}
             >
               <div className={styles.reveal} data-reveal>
-                <Photo photo={photo} shape={slot.shape} fill className={styles.photo} />
+                <Photo photo={photo} fill className={styles.photo} />
               </div>
             </button>
           );

@@ -32,9 +32,9 @@ export const site = {
    * 60 = Gelb, 120 = Grün, 210 = Blau, 300 = Magenta). Ein Kapitel ohne `hues`
    * sammelt alle fast farblosen und sehr dunklen Fotos.
    *
-   * highlights = die 8 Fotos auf der Startseite, in der Reihenfolge der Formen:
-   *   1 Bogen (hoch)  2 Kreis  3 breit (quer)  4 schmaler Streifen (hoch)
-   *   5 abgerundet (hoch)  6 breit (quer)  7 kleiner Kreis  8 Bogen (hoch)
+   * highlights = die 8 Fotos auf der Startseite, in dieser Reihenfolge:
+   *   1 groß (hoch)  2 quadratisch  3 quer  4 hoch
+   *   5 klein (hoch)  6 quer  7 quadratisch  8 hoch
    * Fotos in `highlights` gehören immer zu diesem Kapitel, auch wenn ihre
    * Farbe eigentlich woanders hinpassen würde.
    */

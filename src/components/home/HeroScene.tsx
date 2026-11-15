@@ -348,7 +348,7 @@ function Universe({ photos, progress, onSelect }: Omit<Props, 'active' | 'eventS
   return (
     <>
       <Rig photos={photos} progress={progress} camEnd={camEnd} byDepth={byDepth} warpOut={warp} />
-      {wide && <HeroEffects warp={warp} />}
+      {wide && <HeroEffects warp={warp} progress={progress} />}
       <Stars depth={photos.length * SPACING} />
       {photos.map((p, i) => (
         // jedes Foto in eigenem Suspense: es erscheint, sobald es geladen ist

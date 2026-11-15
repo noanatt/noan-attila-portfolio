@@ -41,12 +41,11 @@
   will-change: transform;
 }
 .reveal { width: 100%; height: 100%; }
-.photo { width: 100%; height: 100%; }
+.photo { width: 100%; height: 100%; border-radius: 4px; }
+.reveal { border-radius: 4px; overflow: hidden; }
 .photo img { transition: opacity 0.8s var(--ease-out), transform 1.1s var(--ease-out); }
 .item:hover .photo img { transform: scale(1.04); }
 
-/* Kreise bleiben rund: so hoch wie ihre Fläche, Breite folgt */
-.circle .photo { width: auto; height: 100%; margin-inline: auto; }
 
 @media (max-width: 760px) {
   .grid { --cols: 6; }
