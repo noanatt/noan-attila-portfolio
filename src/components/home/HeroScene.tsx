@@ -22,6 +22,7 @@ import { Suspense, useMemo, useRef, useState, type MutableRefObject, type RefObj
 import * as THREE from 'three';
 import { photoSrc, type Photo } from '@/content/photos';
 import { isNeutral } from '@/lib/color';
+import HeroEffects from './HeroEffects';
 
 /* Stellschrauben ---------------------------------------------------- */
 const SPACING = 0.55;        // mittlerer Abstand der Fotos in der Tiefe
@@ -264,8 +265,10 @@ function Print({ photo, item, index, count, wallZ, progress, hover, onSelect }: 
 /* ------------------------------------------------------------------
    Kamera, Warp-Effekt und Raumfarbe
    ------------------------------------------------------------------ */
-function Rig({ photos, progress, camEnd, byDepth }: {
+function Rig({ photos, progress, camEnd, byDepth, warpOut }: {
   photos: Photo[]; progress: RefObject<number>; camEnd: number; byDepth: number[];
+  /** Warp-Stärke 0–1 für die Nachbearbeitung (HeroEffects) */
+  warpOut: MutableRefObject<number>;
 }) {
   const colors = useMemo(() => photos.map(roomColor), [photos]);
   const target = useMemo(() => new THREE.Color(), []);
@@ -292,6 +295,7 @@ function Rig({ photos, progress, camEnd, byDepth }: {
     l.speed = THREE.MathUtils.damp(l.speed, speed, 4, delta);
     const wallP = clamp01((p - TUNNEL_END) / (0.97 - TUNNEL_END));
     const warp = Math.min(1, l.speed * 6) * (1 - wallP);
+    warpOut.current = warp;
     cam.fov = THREE.MathUtils.damp(cam.fov, FOV + warp * WARP, 5, delta);
     cam.rotation.z += Math.sin(p * Math.PI * 3) * 0.06 * (1 - wallP);
     cam.updateProjectionMatrix();
@@ -338,9 +342,13 @@ function Stars({ depth }: { depth: number }) {
 function Universe({ photos, progress, onSelect }: Omit<Props, 'active' | 'eventSource'>) {
   const { items, camEnd, wallZ, byDepth } = useLayout(photos);
   const hover = useRef(-1);
+  const warp = useRef(0);
+  // Nachbearbeitung nur auf größeren Bildschirmen (auf Handys zu rechenintensiv)
+  const wide = useThree((s) => s.size.width >= 700);
   return (
     <>
-      <Rig photos={photos} progress={progress} camEnd={camEnd} byDepth={byDepth} />
+      <Rig photos={photos} progress={progress} camEnd={camEnd} byDepth={byDepth} warpOut={warp} />
+      {wide && <HeroEffects warp={warp} />}
       <Stars depth={photos.length * SPACING} />
       {photos.map((p, i) => (
         // jedes Foto in eigenem Suspense: es erscheint, sobald es geladen ist

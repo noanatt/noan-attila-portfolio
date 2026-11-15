@@ -1,12 +1,13 @@
 'use client';
 /**
  * Serienseite: Titel, Text, Umschalter für die Sortierung (Reihenfolge / Farbe)
- * und alle Fotos der Serie.
+ * und alle Fotos der Serie. Beim Umsortieren gleiten die Fotos mit GSAP Flip
+ * von ihrem alten an ihren neuen Platz.
  */
 import Link from 'next/link';
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { spectrumSort, spread, type Series } from '@/content/photos';
-import { gsap, useGSAP, prefersReducedMotion } from '@/lib/gsap';
+import { gsap, Flip, ScrollTrigger, useGSAP, prefersReducedMotion } from '@/lib/gsap';
 import PhotoGrid from './PhotoGrid';
 import styles from './SeriesGallery.module.css';
 
@@ -16,6 +17,34 @@ type Sort = 'original' | 'farbe';
 export default function SeriesGallery({ series, intro, others }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [sort, setSort] = useState<Sort>('original');
+  const flipState = useRef<Flip.FlipState | null>(null);
+
+  // Vor dem Umsortieren die Positionen merken (First) …
+  const changeSort = (next: Sort) => {
+    if (next === sort) return;
+    if (!prefersReducedMotion() && ref.current) {
+      const items = ref.current.querySelectorAll<HTMLElement>('[data-item]');
+      // Ausstehende Einblendungen beenden: ihre Auslöser passen nach dem
+      // Umsortieren nicht mehr zur Position, die Fotos blieben sonst unsichtbar.
+      gsap.killTweensOf(items);
+      gsap.set(items, { opacity: 1, y: 0 });
+      flipState.current = Flip.getState(items);
+    }
+    setSort(next);
+  };
+
+  // … nach dem neuen Rendern (Last) von dort aus animieren (Invert, Play)
+  useLayoutEffect(() => {
+    const state = flipState.current;
+    if (!state) return;
+    flipState.current = null;
+    Flip.from(state, {
+      duration: 1,
+      ease: 'power3.inOut',
+      stagger: { amount: 0.25, from: 'start' },
+      onComplete: () => ScrollTrigger.refresh(),
+    });
+  }, [sort]);
   const photos = useMemo(
     () => (sort === 'farbe' ? spectrumSort(series.photos) : series.photos),
     [sort, series.photos],
@@ -47,8 +76,8 @@ export default function SeriesGallery({ series, intro, others }: Props) {
       <div className={styles.toolbar}>
         <span className={styles.count}>{series.photos.length} Fotos</span>
         <div className={styles.toggle} role="group" aria-label="Sortierung">
-          <button type="button" aria-pressed={sort === 'original'} onClick={() => setSort('original')}>Reihenfolge</button>
-          <button type="button" aria-pressed={sort === 'farbe'} onClick={() => setSort('farbe')}>Nach Farbe</button>
+          <button type="button" aria-pressed={sort === 'original'} onClick={() => changeSort('original')}>Reihenfolge</button>
+          <button type="button" aria-pressed={sort === 'farbe'} onClick={() => changeSort('farbe')}>Nach Farbe</button>
         </div>
       </div>
 

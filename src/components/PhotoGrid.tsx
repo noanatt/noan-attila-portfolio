@@ -33,7 +33,7 @@ export default function PhotoGrid({ photos, label }: Props) {
         scrollTrigger: { trigger: el, start: 'top 94%', once: true },
       });
     });
-  }, { scope: ref, dependencies: [photos], revertOnUpdate: true });
+  }, { scope: ref });
 
   return (
     <div ref={ref} className={styles.grid}>

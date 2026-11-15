@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { useMemo, useRef } from 'react';
 import { chapterHighlights, type Chapter, type Photo as PhotoType } from '@/content/photos';
 import { site } from '@/content/site';
-import { gsap, useGSAP, prefersReducedMotion } from '@/lib/gsap';
+import { gsap, SplitText, useGSAP, prefersReducedMotion } from '@/lib/gsap';
 import Photo, { type Shape } from '../Photo';
 import { useLightbox } from '../Lightbox';
 import styles from './ColorChapter.module.css';
@@ -76,6 +76,22 @@ export default function ColorChapter({ chapter, mirrored = false }: { chapter: C
         scrollTrigger: { trigger: el, start: 'top bottom', end: 'bottom top', scrub: true },
       });
     });
+    // Überschrift: Buchstaben steigen einzeln aus einer Maske auf (GSAP SplitText).
+    // autoSplit teilt neu, wenn Schrift geladen ist oder sich die Breite ändert.
+    SplitText.create('[data-split]', {
+      type: 'words,chars',
+      mask: 'words',
+      autoSplit: true,
+      onSplit: (self) => gsap.from(self.chars, {
+        yPercent: 110,
+        rotate: 6,
+        duration: 1.1,
+        ease: 'expo.out',
+        stagger: 0.035,
+        scrollTrigger: { trigger: self.elements[0], start: 'top 85%', once: true },
+      }),
+    });
+
     // Formen öffnen sich beim ersten Erscheinen
     gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach((el) => {
       gsap.from(el, {
@@ -101,7 +117,7 @@ export default function ColorChapter({ chapter, mirrored = false }: { chapter: C
     >
       <div className={styles.grid}>
         <header className={`${styles.head} ${mirrored ? styles.headMirrored : ''}`}>
-          <h2 id={`${chapter.slug}-title`} className={styles.title}>{chapter.title}</h2>
+          <h2 id={`${chapter.slug}-title`} className={styles.title} data-split>{chapter.title}</h2>
           <p className={styles.text}>{chapter.text}</p>
           <div className={styles.meta}>
             <ul className="swatches" aria-hidden="true">

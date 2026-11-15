@@ -27,7 +27,7 @@
   letter-spacing: -0.055em;
   line-height: 0.88;
   margin-bottom: clamp(20px, 2.4vw, 36px);
-  text-wrap: balance;
+  font-kerning: none; /* verhindert Springen beim Aufteilen in Buchstaben */
 }
 .text { font-size: clamp(16px, 1.3vw, 19px); margin-bottom: 22px; max-width: 32ch; }
 .meta { display: flex; align-items: center; gap: 22px; color: var(--accent); }
