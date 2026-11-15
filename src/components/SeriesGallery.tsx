@@ -39,9 +39,9 @@ export default function SeriesGallery({ series, intro, others }: Props) {
     if (!state) return;
     flipState.current = null;
     Flip.from(state, {
-      duration: 1,
+      duration: 1.3,
       ease: 'power3.inOut',
-      stagger: { amount: 0.25, from: 'start' },
+      stagger: { amount: 0.5, from: 'start' },
       onComplete: () => ScrollTrigger.refresh(),
     });
   }, [sort]);

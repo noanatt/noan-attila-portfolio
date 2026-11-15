@@ -81,14 +81,16 @@ export default function ColorChapter({ chapter, mirrored = false }: { chapter: C
     SplitText.create('[data-split]', {
       type: 'words,chars',
       mask: 'words',
+      wordsClass: 'split-word',
       autoSplit: true,
       onSplit: (self) => gsap.from(self.chars, {
-        yPercent: 110,
-        rotate: 6,
-        duration: 1.1,
+        yPercent: 120,
+        rotate: 14,
+        transformOrigin: '0% 100%',
+        duration: 1.6,
         ease: 'expo.out',
-        stagger: 0.035,
-        scrollTrigger: { trigger: self.elements[0], start: 'top 85%', once: true },
+        stagger: 0.07,
+        scrollTrigger: { trigger: self.elements[0], start: 'top 72%', once: true },
       }),
     });
 
