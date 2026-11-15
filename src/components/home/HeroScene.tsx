@@ -37,6 +37,8 @@ type Props = {
   progress: RefObject<number>;
   active: boolean;
   onSelect: (index: number) => void;
+  /** Bereich, in dem Maus und Klicks die Szene erreichen (nur der Hero, nicht die ganze Seite) */
+  eventSource: RefObject<HTMLElement | null>;
 };
 
 /** Deterministischer Zufall, damit das Layout bei jedem Laden gleich ist */
@@ -202,7 +204,11 @@ function Print({ photo, item, index, count, wallZ, progress, hover, onSelect }: 
   return (
     <mesh
       ref={mesh}
-      onClick={(e) => { e.stopPropagation(); onSelect(index); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (e.delta > 6) return; // Maus wurde beim Klicken bewegt → kein Klick
+        onSelect(index);
+      }}
       onPointerOver={(e) => { e.stopPropagation(); hover.current = index; document.body.style.cursor = 'pointer'; }}
       onPointerOut={() => { if (hover.current === index) hover.current = -1; document.body.style.cursor = ''; }}
     >
@@ -291,7 +297,7 @@ function Stars({ depth }: { depth: number }) {
 }
 
 /* ------------------------------------------------------------------ */
-function Universe({ photos, progress, onSelect }: Omit<Props, 'active'>) {
+function Universe({ photos, progress, onSelect }: Omit<Props, 'active' | 'eventSource'>) {
   const { items, camEnd, wallZ, byDepth } = useLayout(photos);
   const hover = useRef(-1);
   return (
@@ -317,7 +323,7 @@ function Universe({ photos, progress, onSelect }: Omit<Props, 'active'>) {
   );
 }
 
-export default function HeroScene({ photos, progress, active, onSelect }: Props) {
+export default function HeroScene({ photos, progress, active, onSelect, eventSource }: Props) {
   const [bg] = useState(() => new THREE.Color('#000000'));
   return (
     <Canvas
@@ -326,7 +332,7 @@ export default function HeroScene({ photos, progress, active, onSelect }: Props)
       frameloop={active ? 'always' : 'never'}
       camera={{ position: [0, 0, CAMERA_START], fov: FOV, near: 0.1, far: 200 }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
-      eventSource={typeof document !== 'undefined' ? document.body : undefined}
+      eventSource={eventSource as RefObject<HTMLElement>}
       eventPrefix="client"
       scene={{ background: bg }}
       aria-hidden="true"

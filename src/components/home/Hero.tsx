@@ -17,6 +17,7 @@ const HeroScene = dynamic(() => import('./HeroScene'), { ssr: false });
 
 export default function Hero() {
   const section = useRef<HTMLElement>(null);
+  const sticky = useRef<HTMLDivElement>(null);
   const progress = useRef(0);
   const [active, setActive] = useState(true);
   // Auf dem Handy weniger Fotos (schnelleres Laden, flüssigere Darstellung)
@@ -74,7 +75,7 @@ export default function Hero() {
 
   return (
     <section ref={section} className={styles.hero} aria-label="Einstieg" data-ambient="#000000">
-      <div className={styles.sticky}>
+      <div ref={sticky} className={styles.sticky}>
         <div className={styles.canvas}>
           {photos && (
             <HeroScene
@@ -82,6 +83,7 @@ export default function Hero() {
               progress={progress}
               active={active}
               onSelect={(i) => open(photos, i)}
+              eventSource={sticky}
             />
           )}
         </div>
