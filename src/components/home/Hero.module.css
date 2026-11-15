@@ -1,6 +1,6 @@
 .hero {
   position: relative;
-  height: 900svh; /* Länge des Flugs durch das Foto-Universum */
+  height: 650svh; /* Länge des Flugs durch das Foto-Universum (150 Fotos) */
   background: #000;
   color: var(--light);
 }

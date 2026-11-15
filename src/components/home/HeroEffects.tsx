@@ -4,8 +4,7 @@
  * - leichtes Glühen (Bloom) für helle Stellen in den Fotos und die Sterne
  * - Warp: bei schnellem Scrollen ziehen sich Streifen strahlenförmig vom
  *   Bildmittelpunkt nach außen, die Farben trennen sich am Rand auf
- * - Vignette und feines Filmkorn – das Korn erst, wenn die Scroll-Animation
- *   beginnt; das Startbild bleibt sauber
+ * - Vignette
  *
  * Reihenfolge laut three.js: RenderPass → Effekte → OutputPass (Farbraum).
  */
@@ -23,18 +22,14 @@ const BLOOM = 0.45;          // Stärke des Glühens
 const BLOOM_THRESHOLD = 0.72;// ab welcher Helligkeit etwas glüht
 const STREAK = 0.09;         // Länge der Warp-Streifen bei voller Geschwindigkeit
 const SPLIT = 0.012;         // Farbtrennung am Rand bei voller Geschwindigkeit
-const GRAIN = 0.045;         // Filmkorn
-const GRAIN_IN: [number, number] = [0.004, 0.06]; // Scroll-Fortschritt, in dem das Korn einblendet
 const MAX_DPR = 1.25;        // höchste Pixeldichte der Nachbearbeitung (spart Rechenzeit)
 
 const WarpShader = {
   uniforms: {
     tDiffuse: { value: null as THREE.Texture | null },
     uWarp: { value: 0 },
-    uTime: { value: 0 },
     uStreak: { value: STREAK },
     uSplit: { value: SPLIT },
-    uGrain: { value: 0 },
     uAspect: { value: 1 },
   },
   vertexShader: /* glsl */ `
@@ -46,10 +41,8 @@ const WarpShader = {
   `,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
-    uniform float uWarp, uTime, uStreak, uSplit, uGrain, uAspect;
+    uniform float uWarp, uStreak, uSplit, uAspect;
     varying vec2 vUv;
-
-    float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 
     void main() {
       vec2 dir = vUv - 0.5;
@@ -78,9 +71,6 @@ const WarpShader = {
       // Vignette
       col *= mix(1.0, smoothstep(1.05, 0.25, dist), 0.55);
 
-      // Filmkorn
-      col += (hash(vUv * 1000.0 + fract(uTime) * 100.0) - 0.5) * uGrain;
-
       gl_FragColor = vec4(col, 1.0);
     }
   `,
@@ -89,11 +79,9 @@ const WarpShader = {
 type Props = {
   /** Warp-Stärke 0–1, wird von der Kamera (Rig) aus der Scroll-Geschwindigkeit gesetzt */
   warp: RefObject<number>;
-  /** Scroll-Fortschritt der Hero-Animation 0–1 */
-  progress: RefObject<number>;
 };
 
-export default function HeroEffects({ warp, progress }: Props) {
+export default function HeroEffects({ warp }: Props) {
   const { gl, scene, camera, size } = useThree();
 
   const { composer, warpPass } = useMemo(() => {
@@ -121,11 +109,8 @@ export default function HeroEffects({ warp, progress }: Props) {
   useEffect(() => () => composer.dispose(), [composer]);
 
   // Priorität 1: R3F rendert dann nicht mehr selbst, der Composer übernimmt
-  useFrame((state) => {
+  useFrame(() => {
     warpPass.uniforms.uWarp.value = warp.current ?? 0;
-    warpPass.uniforms.uTime.value = state.clock.elapsedTime;
-    const p = progress.current ?? 0;
-    warpPass.uniforms.uGrain.value = GRAIN * THREE.MathUtils.smoothstep(p, GRAIN_IN[0], GRAIN_IN[1]);
     composer.render();
   }, 1);
 

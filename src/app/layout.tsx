@@ -7,6 +7,7 @@ import { LightboxProvider } from '@/components/Lightbox';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AmbientController from '@/components/Ambient';
+import PageTransition from '@/components/PageTransition';
 import './globals.css';
 
 // Schrift wird beim Build heruntergeladen und selbst gehostet (keine Google-Verbindung für Besucher)
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <main>{children}</main>
             <Footer />
             <AmbientController />
+            <PageTransition />
           </LightboxProvider>
         </SmoothScroll>
       </body>

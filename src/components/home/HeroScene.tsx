@@ -17,8 +17,7 @@
  * Klick auf ein Foto öffnet die Lightbox.
  */
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useTexture } from '@react-three/drei';
-import { Suspense, useMemo, useRef, useState, type MutableRefObject, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from 'react';
 import * as THREE from 'three';
 import { photoSrc, type Photo } from '@/content/photos';
 import { isNeutral } from '@/lib/color';
@@ -186,10 +185,62 @@ type PrintProps = {
   progress: RefObject<number>;
   hover: MutableRefObject<number>;
   onSelect: (i: number) => void;
+  textures: RefObject<(THREE.Texture | undefined)[]>;
 };
 
-function Print({ photo, item, index, count, wallZ, progress, hover, onSelect }: PrintProps) {
-  const texture = useTexture(photoSrc(photo, 'xs'));
+/* ------------------------------------------------------------------
+   Fotos laden, ohne die Animation zu stören:
+   - Bilder werden im Hintergrund dekodiert (ImageBitmap, nicht im Hauptthread)
+   - pro Bild nur wenige an die Grafikkarte übergeben (UPLOADS_PER_FRAME)
+   - kein React-Update pro Foto: jedes Foto holt sich seine Textur selbst ab
+   ------------------------------------------------------------------ */
+const UPLOADS_PER_FRAME = 6;
+/** Platzhalter, bis das echte Foto da ist (gleicher Shader, kein Neukompilieren) */
+const PLACEHOLDER = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+PLACEHOLDER.needsUpdate = true;
+
+function usePhotoTextures(photos: Photo[]) {
+  const gl = useThree((st) => st.gl);
+  const ready = useRef<(THREE.Texture | undefined)[]>([]);
+  const queue = useRef<[number, THREE.Texture][]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    const loaded: THREE.Texture[] = [];
+    const loader = new THREE.ImageBitmapLoader();
+    loader.setOptions({ imageOrientation: 'flipY' });
+    photos.forEach((p, i) => {
+      loader.load(photoSrc(p, 'xs'), (bitmap) => {
+        if (!alive) { bitmap.close(); return; }
+        const t = new THREE.Texture(bitmap);
+        t.flipY = false; // schon beim Dekodieren gedreht
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.needsUpdate = true;
+        loaded.push(t);
+        queue.current.push([i, t]);
+      });
+    });
+    return () => {
+      alive = false;
+      loaded.forEach((t) => { t.dispose(); (t.image as ImageBitmap).close?.(); });
+      ready.current = [];
+      queue.current = [];
+    };
+  }, [photos]);
+
+  // Ein paar Texturen pro Bild an die Grafikkarte übergeben
+  useFrame(() => {
+    for (let n = 0; n < UPLOADS_PER_FRAME && queue.current.length; n++) {
+      const [i, t] = queue.current.shift()!;
+      gl.initTexture(t);
+      ready.current[i] = t;
+    }
+  });
+
+  return ready;
+}
+
+function Print({ photo, item, index, count, wallZ, progress, hover, onSelect, textures }: PrintProps) {
   const mesh = useRef<THREE.Mesh>(null);
   const mat = useRef<THREE.MeshBasicMaterial>(null);
   const frame = useRef<THREE.MeshBasicMaterial>(null);
@@ -202,6 +253,15 @@ function Print({ photo, item, index, count, wallZ, progress, hover, onSelect }: 
     const t = item.tunnel;
     const time = three.clock.elapsedTime;
     const s = state.current;
+
+    // Foto erst zeigen, wenn seine Textur bereit ist
+    const mt = mat.current;
+    if (mt && mt.map === PLACEHOLDER) {
+      const tx = textures.current[index];
+      if (tx) mt.map = tx;
+    }
+    m.visible = mt?.map !== PLACEHOLDER;
+    if (!m.visible) return;
 
     // Einblenden nach dem Laden (von Schwarz zur vollen Helligkeit)
     s.appear = Math.min(1, s.appear + delta * 0.9);
@@ -252,9 +312,9 @@ function Print({ photo, item, index, count, wallZ, progress, hover, onSelect }: 
       onPointerOut={() => { if (hover.current === index) hover.current = -1; document.body.style.cursor = ''; }}
     >
       <planeGeometry args={item.size} />
-      <meshBasicMaterial ref={mat} map={texture} toneMapped={false} color="#000000" />
+      <meshBasicMaterial ref={mat} map={PLACEHOLDER} toneMapped={false} color="#000000" />
       {/* Passepartout in der Schlüsselfarbe – erscheint erst an der Farbwand */}
-      <mesh position-z={-0.01}>
+      <mesh position-z={-0.01} raycast={() => null}>
         <planeGeometry args={[item.size[0] + MAT * 2, item.size[1] + MAT * 2]} />
         <meshBasicMaterial ref={frame} color={photo.key.hex} transparent opacity={0} toneMapped={false} />
       </mesh>
@@ -343,17 +403,17 @@ function Universe({ photos, progress, onSelect }: Omit<Props, 'active' | 'eventS
   const { items, camEnd, wallZ, byDepth } = useLayout(photos);
   const hover = useRef(-1);
   const warp = useRef(0);
+  const textures = usePhotoTextures(photos);
   // Nachbearbeitung nur auf größeren Bildschirmen (auf Handys zu rechenintensiv)
   const wide = useThree((s) => s.size.width >= 700);
   return (
     <>
       <Rig photos={photos} progress={progress} camEnd={camEnd} byDepth={byDepth} warpOut={warp} />
-      {wide && <HeroEffects warp={warp} progress={progress} />}
+      {wide && <HeroEffects warp={warp} />}
       <Stars depth={photos.length * SPACING} />
       {photos.map((p, i) => (
-        // jedes Foto in eigenem Suspense: es erscheint, sobald es geladen ist
-        <Suspense key={p.id} fallback={null}>
-          <Print
+        <Print
+            key={p.id}
             photo={p}
             item={items[i]}
             index={i}
@@ -362,8 +422,8 @@ function Universe({ photos, progress, onSelect }: Omit<Props, 'active' | 'eventS
             progress={progress}
             hover={hover}
             onSelect={onSelect}
+            textures={textures}
           />
-        </Suspense>
       ))}
     </>
   );
@@ -374,7 +434,7 @@ export default function HeroScene({ photos, progress, active, onSelect, eventSou
   return (
     <Canvas
       flat
-      dpr={[1, 1.6]}
+      dpr={[1, 1.5]}
       frameloop={active ? 'always' : 'never'}
       camera={{ position: [0, 0, CAMERA_START], fov: FOV, near: 0.1, far: 200 }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}

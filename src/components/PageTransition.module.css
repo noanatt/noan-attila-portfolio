@@ -1,0 +1,26 @@
+/* Fläche für den Seitenübergang, liegt über allem (auch Kopfzeile und Lightbox) */
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: none;
+  place-items: center;
+  pointer-events: auto;
+  will-change: clip-path;
+}
+
+/* Maske: der Name steigt aus dieser Linie auf */
+.mask {
+  display: block;
+  overflow: clip;
+  padding: 0 0.08em 0.12em;
+}
+
+.label {
+  display: block;
+  font-size: clamp(48px, 9vw, 160px);
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+  white-space: nowrap;
+}
