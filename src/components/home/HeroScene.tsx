@@ -4,6 +4,9 @@
  *
  * Phase 1 (Scroll 0 → TUNNEL_END): Die Kamera fliegt durch einen Raum voller
  *   Fotos auf drei Tiefenebenen (nah, mittel, fern) und ein Sternenfeld.
+ *   Die Fotos verteilen sich über das ganze Bildfeld bis in die Ecken. Ferne
+ *   Fotos liegen weit außen und schwenken beim Näherkommen von oben, unten,
+ *   links und rechts auf ihren Platz ein – als kämen sie aus dem All geflogen.
  *   Größe, Neigung, Position und Eigenbewegung sind pro Foto zufällig
  *   (aber bei jedem Laden gleich). Schnelles Scrollen weitet das Sichtfeld
  *   (Warp-Effekt). Die Raumfarbe folgt dem Foto, an dem man vorbeifliegt.
@@ -21,7 +24,7 @@ import { photoSrc, type Photo } from '@/content/photos';
 import { isNeutral } from '@/lib/color';
 
 /* Stellschrauben ---------------------------------------------------- */
-const SPACING = 0.95;        // mittlerer Abstand der Fotos in der Tiefe
+const SPACING = 0.55;        // mittlerer Abstand der Fotos in der Tiefe
 const CAMERA_START = 6;      // Startposition der Kamera
 const TUNNEL_END = 0.8;      // Anteil des Scrollwegs für den Flug
 const WALL_DISTANCE = 9;     // Abstand der Farbwand vor der Kamera
@@ -30,7 +33,11 @@ const SIZE = 1.3;            // Grundgröße der Fotos
 const MAT = 0.07;            // Breite des farbigen Rahmens an der Farbwand
 const FOV = 52;              // Sichtfeld in Ruhe
 const WARP = 22;             // zusätzliches Sichtfeld bei schnellem Scrollen
-const STARS = 3200;          // Anzahl Lichtpunkte im Raum
+const STARS = 5000;          // Anzahl Lichtpunkte im Raum
+const FLY_IN = 11;           // wie weit draußen ferne Fotos starten
+const FLY_NEAR = 7;          // ab dieser Entfernung sitzt ein Foto an seinem Platz
+const FLY_FAR = 26;          // ab dieser Entfernung ist ein Foto ganz draußen
+const FOG_FAR = 28;          // Sichtweite im Raum
 
 type Props = {
   photos: Photo[];
@@ -47,6 +54,9 @@ const rand = (n: number) => {
   return x - Math.floor(x);
 };
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const smooth = (a: number, b: number, v: number) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t); };
+/** Halton-Folge: gleichmäßig verteilte, aber unregelmäßig wirkende Werte 0–1 */
+const halton = (i: number, base: number) => { let f = 1, r = 0; while (i > 0) { f /= base; r += f * (i % base); i = Math.floor(i / base); } return r; };
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 /** Raumfarbe zu einem Foto: dunkel, aber deutlich gefärbt */
@@ -61,6 +71,8 @@ type Item = {
   tunnel: {
     angle: number; rx: number; ry: number; z: number;
     roll: number; tiltX: number; tiltY: number; drift: number; phase: number;
+    /** Anflug: Richtung nach außen, Weite und Drehung */
+    dirX: number; dirY: number; fly: number; spin: number;
   };
   wall: { x: number; y: number; scale: number };
 };
@@ -85,10 +97,16 @@ function useLayout(photos: Photo[]) {
     const depthOf = new Array<number>(n);
     byDepth.forEach((photoIndex, d) => { depthOf[photoIndex] = d; });
 
-    // Winkel in Tiefen-Reihenfolge: jedes Foto springt um 100°–260° weiter
+    // Winkel und Abstand in Tiefen-Reihenfolge aus einer Halton-Folge: deckt
+    // den ganzen Bildausschnitt gleichmäßig ab, aufeinanderfolgende Fotos
+    // landen auf verschiedenen Seiten.
     const angles = new Array<number>(n);
-    let a = rand(99) * Math.PI * 2;
-    byDepth.forEach((photoIndex, d) => { a += THREE.MathUtils.degToRad(100 + rand(d + 21) * 160); angles[photoIndex] = a; });
+    const radial = new Array<number>(n);
+    const offset = rand(99);
+    byDepth.forEach((photoIndex, d) => {
+      angles[photoIndex] = (halton(d + 1, 2) + offset + (rand(d + 21) - 0.5) * 0.08) * Math.PI * 2;
+      radial[photoIndex] = halton(d + 1, 3);
+    });
 
     const lastZ = -(n - 1) * SPACING;
     const camEnd = lastZ - 2;
@@ -102,39 +120,50 @@ function useLayout(photos: Photo[]) {
     const cellW = (visW * 0.9) / cols;
     const cellH = (visH * 0.68) / rows;
 
-    // Breite Bildschirme: Fotos eher seitlich verteilen, Hochformat (Handy): eher oben/unten
-    const spreadX = THREE.MathUtils.clamp(aspect, 0.55, 1.7);
-    const spreadY = THREE.MathUtils.clamp(1 / aspect, 0.8, 1.6) * 0.8;
+    // Verteilung auf ein Rechteck im Seitenverhältnis des Bildschirms (statt
+    // Kreis), damit auch die Ecken oben/unten links/rechts besetzt sind
+    const halfW = THREE.MathUtils.clamp(aspect, 0.55, 1.9);
+    const halfH = 1;
     const screenScale = THREE.MathUtils.clamp(aspect / 1.1, 0.7, 1);
 
     const items: Item[] = photos.map((p, i) => {
       const d = depthOf[i];
-      // Ebene: 55 % nah, 30 % mittel, 15 % fern (ferne Fotos etwas größer)
-      const layerRoll = rand(i + 81);
-      const layer = layerRoll < 0.55 ? 0 : layerRoll < 0.85 ? 1 : 2;
+      // Ebene: 45 % nah, 35 % mittel, 20 % fern (ferne Fotos etwas größer)
+      const layerRoll = radial[i];
+      const layer = layerRoll < 0.45 ? 0 : layerRoll < 0.8 ? 1 : 2;
       const grow = (0.8 + rand(i + 11) * 0.5) * [1, 1.15, 1.6][layer];
       const landscape = p.width > p.height;
       const h = (landscape ? (2.2 * p.height) / p.width : 1.7) * screenScale * SIZE * grow;
       const w = (h * p.width) / p.height;
       const minR = Math.max(w, h) * 0.5 + 0.6;
-      const r = [minR + rand(i) * 2, 4.2 + rand(i) * 3.2, 8.5 + rand(i) * 5][layer];
+      const r = [minR + rand(i) * 2, Math.max(minR, 4) + rand(i) * 3.2, 8 + rand(i) * 5][layer];
+      // Punkt auf dem Rechteck in Richtung des Winkels
+      const cx = Math.cos(angles[i]), cy = Math.sin(angles[i]);
+      const toEdge = 1 / Math.max(Math.abs(cx) / halfW, Math.abs(cy) / halfH);
+      // in den Ecken nicht ganz so weit raus wie an den Kanten
+      const reach = THREE.MathUtils.lerp(1, toEdge, 0.85);
       const col = i % cols;
       const row = Math.floor(i / cols);
       return {
         size: [w, h],
         tunnel: {
           angle: angles[i],
-          rx: r * spreadX,
-          ry: r * spreadY,
+          rx: r * reach,
+          ry: r * reach,
           z: -d * SPACING + (rand(i + 31) - 0.5) * SPACING * 2,
           roll: (rand(i + 7) - 0.5) * 0.35,
           tiltX: (rand(i + 41) - 0.5) * 0.6,
           tiltY: (rand(i + 51) - 0.5) * 0.7,
           drift: (rand(i + 61) - 0.5) * 2 * DRIFT,
           phase: rand(i + 71) * Math.PI * 2,
+          dirX: cx * halfW,
+          dirY: cy * halfH,
+          fly: FLY_IN * (0.7 + rand(i + 91) * 0.7),
+          spin: (rand(i + 101) - 0.5) * 2.2,
         },
         wall: {
-          x: (col - (cols - 1) / 2) * cellW,
+          // letzte, unvollständige Reihe mittig
+          x: (col - ((row === rows - 1 ? n - row * cols : cols) - 1) / 2) * cellW,
           y: ((rows - 1) / 2 - row) * cellH + visH * 0.02,
           scale: Math.min((cellW * 0.88) / (w + MAT * 2), (cellH * 0.88) / (h + MAT * 2)),
         },
@@ -163,7 +192,7 @@ function Print({ photo, item, index, count, wallZ, progress, hover, onSelect }: 
   const mesh = useRef<THREE.Mesh>(null);
   const mat = useRef<THREE.MeshBasicMaterial>(null);
   const frame = useRef<THREE.MeshBasicMaterial>(null);
-  const state = useRef({ appear: 0, hover: 1 });
+  const state = useRef({ appear: 0, intro: 0, hover: 1 });
 
   useFrame((three, delta) => {
     const m = mesh.current;
@@ -175,12 +204,21 @@ function Print({ photo, item, index, count, wallZ, progress, hover, onSelect }: 
 
     // Einblenden nach dem Laden (von Schwarz zur vollen Helligkeit)
     s.appear = Math.min(1, s.appear + delta * 0.9);
+    s.intro = Math.min(1, s.intro + delta * 0.45);
     mat.current?.color.setScalar(s.appear * s.appear);
+
+    // Anflug aus dem All: weit entfernte Fotos liegen draußen und weiter hinten,
+    // beim Näherkommen schwenken sie auf ihren Platz. Beim Laden genauso.
+    const ahead = three.camera.position.z - t.z;
+    const intro = 1 - (1 - s.intro) ** 3;
+    const fly = Math.max(smooth(FLY_NEAR, FLY_FAR, ahead), 1 - intro);
+    const flyEase = fly * fly;
 
     // Position im Raum: eigenes Kreisen und Schweben
     const angle = t.angle + p * t.drift * 3;
-    const tx = Math.cos(angle) * t.rx + Math.sin(time * 0.35 + t.phase) * 0.12;
-    const ty = Math.sin(angle) * t.ry + Math.cos(time * 0.45 + t.phase) * 0.1;
+    const tx = Math.cos(angle) * t.rx + Math.sin(time * 0.35 + t.phase) * 0.12 + t.dirX * t.fly * flyEase;
+    const ty = Math.sin(angle) * t.ry + Math.cos(time * 0.45 + t.phase) * 0.1 + t.dirY * t.fly * flyEase;
+    const tz = t.z - flyEase * 8;
 
     // Übergang zur Farbwand, gestaffelt nach Farbreihenfolge
     const wallP = clamp01((p - TUNNEL_END) / (0.97 - TUNNEL_END));
@@ -188,12 +226,12 @@ function Print({ photo, item, index, count, wallZ, progress, hover, onSelect }: 
     m.position.set(
       THREE.MathUtils.lerp(tx, item.wall.x, local),
       THREE.MathUtils.lerp(ty, item.wall.y, local),
-      THREE.MathUtils.lerp(t.z, wallZ, local),
+      THREE.MathUtils.lerp(tz, wallZ, local),
     );
     m.rotation.set(
       THREE.MathUtils.lerp(ty * 0.04 + t.tiltX + Math.sin(time * 0.3 + t.phase) * 0.04, 0, local),
       THREE.MathUtils.lerp(-tx * 0.04 + t.tiltY, 0, local),
-      THREE.MathUtils.lerp(t.roll, 0, local),
+      THREE.MathUtils.lerp(t.roll + t.spin * flyEase, 0, local),
     );
     s.hover = THREE.MathUtils.damp(s.hover, hover.current === index ? 1.08 : 1, 8, delta);
     const scale = THREE.MathUtils.lerp(1, item.wall.scale, local) * s.hover;
@@ -266,7 +304,7 @@ function Rig({ photos, progress, camEnd, byDepth }: {
     const fog = state.scene.fog as THREE.Fog;
     fog.color.copy(bg);
     fog.near = THREE.MathUtils.lerp(4, WALL_DISTANCE + 3, wallP);
-    fog.far = THREE.MathUtils.lerp(26, WALL_DISTANCE + 16, wallP);
+    fog.far = THREE.MathUtils.lerp(FOG_FAR, WALL_DISTANCE + 16, wallP);
   });
   return null;
 }
@@ -281,7 +319,7 @@ function Stars({ depth }: { depth: number }) {
       // nicht direkt auf der Flugbahn
       const a = rand(i + 900) * Math.PI * 2;
       const r = 1.2 + Math.pow(rand(i + 1900), 0.6) * 22;
-      pos[i * 3] = Math.cos(a) * r * 1.4;
+      pos[i * 3] = Math.cos(a) * r * 1.6;
       pos[i * 3 + 1] = Math.sin(a) * r;
       pos[i * 3 + 2] = CAMERA_START + 4 - rand(i + 2900) * (depth + 30);
     }
@@ -337,7 +375,7 @@ export default function HeroScene({ photos, progress, active, onSelect, eventSou
       scene={{ background: bg }}
       aria-hidden="true"
     >
-      <fog attach="fog" args={['#000000', 4, 26]} />
+      <fog attach="fog" args={['#000000', 4, FOG_FAR]} />
       <Universe photos={photos} progress={progress} onSelect={onSelect} />
     </Canvas>
   );

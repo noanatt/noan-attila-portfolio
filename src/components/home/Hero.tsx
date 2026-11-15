@@ -25,7 +25,7 @@ export default function Hero() {
   const { open } = useLightbox();
 
   useEffect(() => {
-    setPhotos(window.innerWidth < 700 ? spread(featured.hero, 48) : featured.hero);
+    setPhotos(window.innerWidth < 700 ? spread(featured.hero, 80) : featured.hero);
   }, []);
 
   // 3D-Rendering pausieren, wenn der Hero nicht sichtbar ist (spart Akku)
