@@ -2,7 +2,11 @@ import type { Metadata } from 'next';
 import { site } from '@/content/site';
 import styles from '@/components/TextPage.module.css';
 
-export const metadata: Metadata = { title: 'About', description: site.about[0] };
+export const metadata: Metadata = {
+  title: 'About',
+  description: site.about[0],
+  alternates: { canonical: '/about/' },
+};
 
 export default function About() {
   return (

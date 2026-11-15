@@ -5,7 +5,7 @@
  */
 export const site = {
   name: 'noan attila',
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noanatt.github.io/noan-attila-portfolio/',
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noanattila.com/',
   email: 'noanatt05@gmail.com',
   instagram: 'https://www.instagram.com/noan.attila/',
 

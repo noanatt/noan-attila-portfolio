@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { site } from '@/content/site';
 import styles from '@/components/TextPage.module.css';
 
-export const metadata: Metadata = { title: 'Impressum', robots: { index: false } };
+export const metadata: Metadata = { title: 'Impressum', robots: { index: false }, alternates: { canonical: '/impressum/' } };
 
 /* WICHTIG: Platzhalter in eckigen Klammern durch deine echten Angaben ersetzen. */
 export default function Impressum() {

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { site } from '@/content/site';
 import styles from '@/components/TextPage.module.css';
 
-export const metadata: Metadata = { title: 'Datenschutz', robots: { index: false } };
+export const metadata: Metadata = { title: 'Datenschutz', robots: { index: false }, alternates: { canonical: '/datenschutz/' } };
 
 export default function Datenschutz() {
   return (

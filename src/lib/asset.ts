@@ -1,5 +1,5 @@
 /**
- * Hängt den Base-Path (z. B. /noan-attila-portfolio auf GitHub Pages)
+ * Hängt den Base-Path (nur nötig, wenn die Seite in einem Unterordner liegt)
  * vor Pfade aus dem public-Ordner. Next.js macht das für <Link> automatisch,
  * für normale <img>-Tags und 3D-Texturen aber nicht.
  */

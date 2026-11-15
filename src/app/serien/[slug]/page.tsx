@@ -24,7 +24,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: s.title,
     description: site.seriesIntro[slug] ?? site.description,
-    openGraph: cover ? { images: [`photos/${cover.series}/${cover.id}-lg.jpg`] } : undefined,
+    alternates: { canonical: `/serien/${slug}/` },
+    openGraph: {
+      type: 'website',
+      siteName: site.name,
+      url: `/serien/${slug}/`,
+      images: cover ? [`photos/${cover.series}/${cover.id}-lg.jpg`] : undefined,
+    },
   };
 }
 

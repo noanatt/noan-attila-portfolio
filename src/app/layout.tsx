@@ -21,8 +21,10 @@ export const metadata: Metadata = {
   title: { default: `${site.name} | Fotografie`, template: `%s | ${site.name}` },
   description: site.description,
   authors: [{ name: site.name }],
+  alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
+    url: '/',
     siteName: site.name,
     title: `${site.name} | Fotografie`,
     description: site.description,

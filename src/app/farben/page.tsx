@@ -10,6 +10,7 @@ import styles from './farben.module.css';
 export const metadata: Metadata = {
   title: 'Farben',
   description: 'Alle Fotos von noan attila, nach Farbe sortiert.',
+  alternates: { canonical: '/farben/' },
 };
 
 export default function Farben() {
