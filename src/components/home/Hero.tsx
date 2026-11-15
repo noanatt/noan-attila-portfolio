@@ -22,7 +22,8 @@ export default function Hero() {
   const [active, setActive] = useState(true);
   // Auf dem Handy weniger Fotos (schnelleres Laden, flüssigere Darstellung)
   const [photos, setPhotos] = useState<typeof featured.hero | null>(null);
-  const { open } = useLightbox();
+  const { open, settled: lightboxOpen } = useLightbox();
+  // 3D-Szene pausiert, solange die Lightbox ruhig offen steht
 
   useEffect(() => {
     setPhotos(window.innerWidth < 700 ? spread(featured.hero, 80) : featured.hero);
@@ -81,8 +82,8 @@ export default function Hero() {
             <HeroScene
               photos={photos}
               progress={progress}
-              active={active}
-              onSelect={(i) => open(photos, i)}
+              active={active && !lightboxOpen}
+              onSelect={(i, origin) => open(photos, i, origin)}
               eventSource={sticky}
             />
           )}

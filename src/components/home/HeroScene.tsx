@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject, type RefOb
 import * as THREE from 'three';
 import { photoSrc, type Photo } from '@/content/photos';
 import { isNeutral } from '@/lib/color';
+import type { LightboxOrigin } from '../Lightbox';
 import HeroEffects from './HeroEffects';
 
 /* Stellschrauben ---------------------------------------------------- */
@@ -43,7 +44,7 @@ type Props = {
   photos: Photo[];
   progress: RefObject<number>;
   active: boolean;
-  onSelect: (index: number) => void;
+  onSelect: (index: number, origin?: LightboxOrigin) => void;
   /** Bereich, in dem Maus und Klicks die Szene erreichen (nur der Hero, nicht die ganze Seite) */
   eventSource: RefObject<HTMLElement | null>;
 };
@@ -184,7 +185,9 @@ type PrintProps = {
   wallZ: number;
   progress: RefObject<number>;
   hover: MutableRefObject<number>;
-  onSelect: (i: number) => void;
+  /** Foto, das gerade groß in der Lightbox ist (hier ausgeblendet) */
+  lifted: MutableRefObject<number>;
+  onSelect: (i: number, origin?: LightboxOrigin) => void;
   textures: RefObject<(THREE.Texture | undefined)[]>;
 };
 
@@ -240,7 +243,9 @@ function usePhotoTextures(photos: Photo[]) {
   return ready;
 }
 
-function Print({ photo, item, index, count, wallZ, progress, hover, onSelect, textures }: PrintProps) {
+function Print({ photo, item, index, count, wallZ, progress, hover, lifted, onSelect, textures }: PrintProps) {
+  const camera = useThree((st) => st.camera);
+  const canvas = useThree((st) => st.gl.domElement);
   const mesh = useRef<THREE.Mesh>(null);
   const mat = useRef<THREE.MeshBasicMaterial>(null);
   const frame = useRef<THREE.MeshBasicMaterial>(null);
@@ -262,6 +267,7 @@ function Print({ photo, item, index, count, wallZ, progress, hover, onSelect, te
     }
     m.visible = mt?.map !== PLACEHOLDER;
     if (!m.visible) return;
+    if (lifted.current === index) m.visible = false;
 
     // Einblenden nach dem Laden (von Schwarz zur vollen Helligkeit)
     s.appear = Math.min(1, s.appear + delta * 0.9);
@@ -306,7 +312,28 @@ function Print({ photo, item, index, count, wallZ, progress, hover, onSelect, te
       onClick={(e) => {
         e.stopPropagation();
         if (e.delta > 6) return; // Maus wurde beim Klicken bewegt → kein Klick
-        onSelect(index);
+        onSelect(index, {
+          // Ecken des Fotos auf den Bildschirm projizieren → Rechteck in Pixeln
+          rect: () => {
+            const m = mesh.current;
+            if (!m) return null;
+            m.updateWorldMatrix(true, false);
+            const c = canvas.getBoundingClientRect();
+            const v = new THREE.Vector3();
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+            for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+              v.set((sx * item.size[0]) / 2, (sy * item.size[1]) / 2, 0).applyMatrix4(m.matrixWorld).project(camera);
+              if (v.z > 1) return null; // hinter der Kamera
+              const px = c.left + ((v.x + 1) / 2) * c.width;
+              const py = c.top + ((1 - v.y) / 2) * c.height;
+              x0 = Math.min(x0, px); x1 = Math.max(x1, px);
+              y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+            }
+            return new DOMRect(x0, y0, x1 - x0, y1 - y0);
+          },
+          hide: () => { lifted.current = index; },
+          show: () => { if (lifted.current === index) lifted.current = -1; },
+        });
       }}
       onPointerOver={(e) => { e.stopPropagation(); hover.current = index; document.body.style.cursor = 'pointer'; }}
       onPointerOut={() => { if (hover.current === index) hover.current = -1; document.body.style.cursor = ''; }}
@@ -402,6 +429,7 @@ function Stars({ depth }: { depth: number }) {
 function Universe({ photos, progress, onSelect }: Omit<Props, 'active' | 'eventSource'>) {
   const { items, camEnd, wallZ, byDepth } = useLayout(photos);
   const hover = useRef(-1);
+  const lifted = useRef(-1);
   const warp = useRef(0);
   const textures = usePhotoTextures(photos);
   // Nachbearbeitung nur auf größeren Bildschirmen (auf Handys zu rechenintensiv)
@@ -421,6 +449,7 @@ function Universe({ photos, progress, onSelect }: Omit<Props, 'active' | 'eventS
             wallZ={wallZ}
             progress={progress}
             hover={hover}
+            lifted={lifted}
             onSelect={onSelect}
             textures={textures}
           />
