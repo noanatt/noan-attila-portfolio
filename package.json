@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node scripts/fix-export.mjs",
     "start": "npx serve out",
     "photos": "node scripts/import-photos.mjs",
     "typecheck": "tsc --noEmit"
