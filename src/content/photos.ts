@@ -107,7 +107,13 @@ export const chapters: Chapter[] = (() => {
   const neutralDef = defs.find((d) => !d.hues);
   const chromaDefs = defs.filter((d) => d.hues);
 
+  // Handverlesene Fotos (highlights) gehören fest zu ihrem Kapitel
+  const manual = new Map<string, string>();
+  for (const d of defs) for (const id of d.highlights ?? []) if (!manual.has(id)) manual.set(id, d.slug);
+
   for (const p of allPhotos) {
+    const fixed = manual.get(p.id);
+    if (fixed) { buckets.get(fixed)!.push(p); continue; }
     if (isNeutral(p.key) && neutralDef) { buckets.get(neutralDef.slug)!.push(p); continue; }
     const hit = chromaDefs.find((d) => d.hues!.some((r) => inRange(p.key.h, r)));
     // Kein Bereich passt → nächstgelegenes Kapitel auf dem Farbkreis

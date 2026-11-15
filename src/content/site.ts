@@ -7,7 +7,7 @@ export const site = {
   name: 'noan attila',
   url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noanatt.github.io/noan-attila-portfolio/',
   email: 'noanatt05@gmail.com',
-  instagram: 'https://instagram.com/noanattila',
+  instagram: 'https://www.instagram.com/noan.attila/',
 
   description:
     'Fotografie von noan attila. Nächte in New York und ein Roadtrip quer durch die USA.',
@@ -27,34 +27,56 @@ export const site = {
 
   /**
    * FARBKAPITEL auf der Startseite (in dieser Reihenfolge).
+   *
    * hues = Farbtonbereiche auf dem Farbkreis in Grad (0 = Rot, 30 = Orange,
    * 60 = Gelb, 120 = Grün, 210 = Blau, 300 = Magenta). Ein Kapitel ohne `hues`
    * sammelt alle fast farblosen und sehr dunklen Fotos.
-   * highlights = optional feste Auswahl von Foto-IDs, sonst automatisch.
+   *
+   * highlights = die 8 Fotos auf der Startseite, in der Reihenfolge der Formen:
+   *   1 Bogen (hoch)  2 Kreis  3 breit (quer)  4 schmaler Streifen (hoch)
+   *   5 abgerundet (hoch)  6 breit (quer)  7 kleiner Kreis  8 Bogen (hoch)
+   * Fotos in `highlights` gehören immer zu diesem Kapitel, auch wenn ihre
+   * Farbe eigentlich woanders hinpassen würde.
    */
   chapters: [
     {
       slug: 'schatten',
       title: 'Schatten',
       text: 'Wenig Farbe, viel Licht und Dunkel. Silhouetten, Linien und die Stunden, in denen die Stadt leiser wird.',
+      highlights: [
+        'p1046384', 'p1046508', 'p1045727', 'p1046263',
+        '_a670363', 'p1046493', 'p1046479', '_a670195',
+      ],
     },
     {
       slug: 'blaue-stunde',
       title: 'Blaue Stunde',
       text: 'Kurz nach Sonnenuntergang, wenn der Himmel noch leuchtet und die Fenster schon an sind.',
       hues: [[75, 270]],
+      highlights: [
+        '_a670156', 'p1045834', 'p1046564', '_a670198',
+        '_a670138', '_a670186', 'p1046020', '_a670162',
+      ],
     },
     {
       slug: 'signalrot',
       title: 'Signalrot',
       text: 'Ampeln, Neon und Leuchtreklame. Rot, das sich aus der Nacht schneidet.',
       hues: [[270, 360], [0, 18]],
+      highlights: [
+        '_a670322', 'p1045880', 'p1046457', '_a670283',
+        '_a670285', '_a670317', 'p1045985', '_a670229',
+      ],
     },
     {
       slug: 'natriumlicht',
       title: 'Natriumlicht',
       text: 'Straßenlaternen, Abendsonne, Wüstenstaub. Warmes Licht, in dem alles weicher wird.',
       hues: [[18, 75]],
+      highlights: [
+        '_a670215', 'p1045650', 'p1046029', '_a670260',
+        '_a670247', 'p1045769', '_a670478', '_a670151',
+      ],
     },
   ] as { slug: string; title: string; text: string; hues?: [number, number][]; highlights?: string[] }[],
 

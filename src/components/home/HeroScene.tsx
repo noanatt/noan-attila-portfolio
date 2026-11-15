@@ -2,9 +2,10 @@
 /**
  * 3D-Szene im Hero.
  *
- * Phase 1 (Scroll 0 → TUNNEL_END): Die Fotos hängen spiralförmig um die
- *   Kamera, die durch sie hindurchfliegt. Die Fotos sind nach Farbe sortiert,
- *   und die Raumfarbe folgt dem Foto, an dem man gerade vorbeifliegt.
+ * Phase 1 (Scroll 0 → TUNNEL_END): Die Fotos schweben frei verteilt um die
+ *   Kamera, die durch sie hindurchfliegt. Größe, Neigung, Tiefe und Bewegung
+ *   sind pro Foto zufällig (aber bei jedem Laden gleich). Die Raumfarbe folgt
+ *   dem Foto, an dem man gerade vorbeifliegt.
  * Phase 2 (TUNNEL_END → 1): Alle Fotos fliegen vor der Kamera zu einer
  *   nach Farbe sortierten Wand zusammen.
  *
@@ -18,11 +19,12 @@ import { photoSrc, type Photo } from '@/content/photos';
 import { isNeutral } from '@/lib/color';
 
 /* Stellschrauben ---------------------------------------------------- */
-const SPACING = 1.55;        // Abstand der Fotos in der Tiefe
+const SPACING = 2.0;         // mittlerer Abstand der Fotos in der Tiefe
 const CAMERA_START = 6;      // Startposition der Kamera
 const TUNNEL_END = 0.76;     // Anteil des Scrollwegs für die Kamerafahrt
 const WALL_DISTANCE = 8.5;   // Abstand der Farbwand vor der Kamera
-const TWIST = 1.4;           // wie stark sich die Spirale beim Scrollen dreht
+const DRIFT = 0.7;           // wie stark jedes Foto beim Scrollen eigenständig kreist
+const SIZE = 1.35;           // Grundgröße der Fotos (1 = klein, 1.5 = groß)
 const MAT = 0.09;            // Breite des farbigen Rahmens an der Farbwand
 
 type Props = {
@@ -49,7 +51,10 @@ function roomColor(p: Photo) {
 }
 
 type Layout = {
-  tunnel: { angle: number; rx: number; ry: number; z: number; roll: number };
+  tunnel: {
+    angle: number; rx: number; ry: number; z: number;
+    roll: number; tiltX: number; tiltY: number; drift: number; phase: number;
+  };
   wall: { x: number; y: number; scale: number };
   size: [number, number];
 };
@@ -74,20 +79,44 @@ function useLayout(photos: Photo[]) {
     const spreadX = THREE.MathUtils.clamp(aspect, 0.55, 1.7);
     const scale = THREE.MathUtils.clamp(aspect / 1.1, 0.7, 1);
 
+    // Reihenfolge im Tunnel: gemischt (fest, nicht bei jedem Laden anders),
+    // die ersten drei sind helle, farbige Fotos für einen starken Einstieg.
+    // An der Farbwand gilt dagegen die Farbsortierung (Index i).
+    const shuffled = photos.map((_, i) => i).sort((a, b) => rand(a + 500) - rand(b + 500));
+    const vivid = [...shuffled]
+      .sort((a, b) => photos[b].lightness * photos[b].key.s - photos[a].lightness * photos[a].key.s)
+      .slice(0, 3);
+    const byDepth = [...vivid, ...shuffled.filter((i) => !vivid.includes(i))];
+    const depthOf = new Array<number>(n);
+    byDepth.forEach((photoIndex, d) => { depthOf[photoIndex] = d; });
+
+    // Winkel in Tiefen-Reihenfolge: jedes Foto springt um 100°–260° weiter,
+    // damit sie rundum verteilt sind, aber kein Muster entsteht.
+    const angles = new Array<number>(n);
+    let a = rand(99) * Math.PI * 2;
+    byDepth.forEach((photoIndex, d) => { a += THREE.MathUtils.degToRad(100 + rand(d + 21) * 160); angles[photoIndex] = a; });
+
     const items: Layout[] = photos.map((p, i) => {
+      const d = depthOf[i];
       const landscape = p.width > p.height;
-      const h = (landscape ? (2.2 * p.height) / p.width : 1.7) * scale;
+      const grow = 0.8 + rand(i + 11) * 0.5; // jedes Foto etwas anders groß
+      const h = (landscape ? (2.2 * p.height) / p.width : 1.7) * scale * SIZE * grow;
       const w = (h * p.width) / p.height;
-      const r = 2.1 + rand(i) * 0.9;
+      // Abstand zur Mitte: mindestens so weit, dass die Flugbahn frei bleibt
+      const r = Math.max(w, h) * 0.5 + 0.7 + rand(i) * 1.9;
       const col = i % cols;
       const row = Math.floor(i / cols);
       return {
         tunnel: {
-          angle: i * 2.18 + rand(i + 4) * 0.4,
+          angle: angles[i],
           rx: r * spreadX,
-          ry: r * 0.82,
-          z: -i * SPACING,
-          roll: (rand(i + 7) - 0.5) * 0.22,
+          ry: r * 0.8,
+          z: -d * SPACING + (rand(i + 31) - 0.5) * SPACING * 0.9,
+          roll: (rand(i + 7) - 0.5) * 0.3,
+          tiltX: (rand(i + 41) - 0.5) * 0.5,
+          tiltY: (rand(i + 51) - 0.5) * 0.6,
+          drift: (rand(i + 61) - 0.5) * 2 * DRIFT,
+          phase: rand(i + 71) * Math.PI * 2,
         },
         wall: {
           x: (col - (cols - 1) / 2) * cellW,
@@ -97,13 +126,13 @@ function useLayout(photos: Photo[]) {
         size: [w, h],
       };
     });
-    return { items, camEnd, wallZ };
+    return { items, camEnd, wallZ, byDepth };
   }, [photos, aspect]);
 }
 
 function Prints({ photos, progress, onSelect }: Pick<Props, 'photos' | 'progress' | 'onSelect'>) {
   const textures = useTexture(photos.map((p) => photoSrc(p, 'xs')));
-  const { items, camEnd, wallZ } = useLayout(photos);
+  const { items, camEnd, wallZ, byDepth } = useLayout(photos);
   const refs = useRef<(THREE.Mesh | null)[]>([]);
   const hover = useRef<number>(-1);
   const hoverScale = useRef<number[]>([]);
@@ -132,9 +161,11 @@ function Prints({ photos, progress, onSelect }: Pick<Props, 'photos' | 'progress
       const m = refs.current[i];
       if (!m) return;
       const t = it.tunnel;
-      const angle = t.angle + p * TWIST;
-      const tx = Math.cos(angle) * t.rx;
-      const ty = Math.sin(angle) * t.ry + Math.sin(state.clock.elapsedTime * 0.6 + i) * 0.04;
+      const time = state.clock.elapsedTime;
+      // jedes Foto kreist in eigener Richtung und Geschwindigkeit, dazu leichtes Schweben
+      const angle = t.angle + p * t.drift * 3;
+      const tx = Math.cos(angle) * t.rx + Math.sin(time * 0.35 + t.phase) * 0.12;
+      const ty = Math.sin(angle) * t.ry + Math.cos(time * 0.45 + t.phase) * 0.1;
 
       // gestaffelt: die ersten Fotos fliegen zuerst zur Wand
       const local = easeInOut(clamp01((wallP - (i / n) * 0.4) / 0.6));
@@ -144,8 +175,8 @@ function Prints({ photos, progress, onSelect }: Pick<Props, 'photos' | 'progress
         THREE.MathUtils.lerp(t.z, wallZ, local),
       );
       m.rotation.set(
-        THREE.MathUtils.lerp(ty * 0.1, 0, local),
-        THREE.MathUtils.lerp(-tx * 0.1, 0, local),
+        THREE.MathUtils.lerp(ty * 0.06 + t.tiltX + Math.sin(time * 0.3 + t.phase) * 0.04, 0, local),
+        THREE.MathUtils.lerp(-tx * 0.06 + t.tiltY, 0, local),
         THREE.MathUtils.lerp(t.roll, 0, local),
       );
       const mat = mats.current[i];
@@ -158,7 +189,7 @@ function Prints({ photos, progress, onSelect }: Pick<Props, 'photos' | 'progress
 
     // Raumfarbe: Farbe des nächsten Fotos vor der Kamera, zur Wand hin Schwarz
     const ahead = Math.min(n - 1, Math.max(0, Math.round((CAMERA_START - cam.position.z) / SPACING)));
-    target.copy(colors[ahead]).lerp(black, wallP);
+    target.copy(colors[byDepth[ahead]]).lerp(black, wallP);
     const bg = state.scene.background as THREE.Color;
     bg.lerp(target, 1 - Math.exp(-2.5 * delta));
     const fog = state.scene.fog as THREE.Fog;

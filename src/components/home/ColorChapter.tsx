@@ -11,6 +11,7 @@
 import Link from 'next/link';
 import { useMemo, useRef } from 'react';
 import { chapterHighlights, type Chapter, type Photo as PhotoType } from '@/content/photos';
+import { site } from '@/content/site';
 import { gsap, useGSAP, prefersReducedMotion } from '@/lib/gsap';
 import Photo, { type Shape } from '../Photo';
 import { useLightbox } from '../Lightbox';
@@ -39,8 +40,12 @@ const SLOTS: Slot[] = [
   { shape: 'arch',   prefer: 'portrait',  desktop: [10, 13, 17, 22], mobile: [1, 4, 32, 37], speed: 0.8 },
 ];
 
-/** Verteilt die Fotos so auf die Formen, dass Hoch-/Querformat möglichst passen */
-function assign(photos: PhotoType[]): (PhotoType | undefined)[] {
+/**
+ * Verteilt die Fotos auf die Formen. Bei handverlesener Auswahl (site.ts → highlights)
+ * gilt genau deren Reihenfolge, sonst wird nach Hoch-/Querformat passend verteilt.
+ */
+function assign(photos: PhotoType[], manual: boolean): (PhotoType | undefined)[] {
+  if (manual) return SLOTS.map((_, i) => photos[i]);
   const pool = [...photos];
   return SLOTS.map((slot) => {
     if (!pool.length) return undefined;
@@ -57,7 +62,8 @@ export default function ColorChapter({ chapter, mirrored = false }: { chapter: C
   const ref = useRef<HTMLElement>(null);
   const { open } = useLightbox();
   const highlights = useMemo(() => chapterHighlights(chapter, SLOTS.length), [chapter]);
-  const placed = useMemo(() => assign(highlights), [highlights]);
+  const isManual = Boolean(site.chapters.find((d) => d.slug === chapter.slug)?.highlights?.length);
+  const placed = useMemo(() => assign(highlights, isManual), [highlights, isManual]);
   const lightboxList = placed.filter((p): p is PhotoType => Boolean(p));
 
   useGSAP(() => {
