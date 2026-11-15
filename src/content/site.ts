@@ -10,7 +10,7 @@ export const site = {
   instagram: 'https://www.instagram.com/noan.attila/',
 
   description:
-    'Fotografie von noan attila. Nächte in New York und ein Roadtrip quer durch die USA.',
+    'Fotografie von noan attila. Nächte in New York, ein Roadtrip quer durch die USA und Fußball am Wochenende.',
 
   /** Großer Text im Hero (3D-Szene) */
   heroKicker: 'Fotografie',
@@ -52,10 +52,20 @@ export const site = {
       slug: 'blaue-stunde',
       title: 'Blaue Stunde',
       text: 'Kurz nach Sonnenuntergang, wenn der Himmel noch leuchtet und die Fenster schon an sind.',
-      hues: [[75, 270]],
+      hues: [[165, 270]],
       highlights: [
         '_a670156', 'p1045834', 'p1046564', '_a670198',
         '_a670138', '_a670186', 'p1046020', '_a670162',
+      ],
+    },
+    {
+      slug: 'rasengruen',
+      title: 'Rasengrün',
+      text: 'Fußballplätze im Herbst, Laub und Sumpfwasser. Grün in allen Tönen, dazwischen ein Spiel.',
+      hues: [[62, 165]],
+      highlights: [
+        '_a671060', '_a671096', '_a670627', '_a670677',
+        '_a671065', '_a671228', '_a671243', '_a670928',
       ],
     },
     {
@@ -72,7 +82,7 @@ export const site = {
       slug: 'natriumlicht',
       title: 'Natriumlicht',
       text: 'Straßenlaternen, Abendsonne, Wüstenstaub. Warmes Licht, in dem alles weicher wird.',
-      hues: [[18, 75]],
+      hues: [[18, 62]],
       highlights: [
         '_a670215', 'p1045650', 'p1046029', '_a670260',
         '_a670247', 'p1045769', '_a670478', '_a670151',
@@ -89,6 +99,8 @@ export const site = {
       'Licht, das nicht schläft. Straßenschluchten, Spiegelungen und die Stunden, in denen die Stadt leiser wird.',
     'usa-roadtrip':
       'Tausende Kilometer Asphalt. Weite, Wüste und die kleinen Orte dazwischen.',
+    'hard-juniors':
+      'Fußball am Wochenende. Zwei Spiele der Hard Juniors, gegen Lochau und gegen Schwarzach.',
   } as Record<string, string>,
 
   /** Kontaktbereich am Ende der Startseite */

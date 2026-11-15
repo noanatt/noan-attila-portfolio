@@ -161,7 +161,7 @@ export const featured = {
   reveal: pick(['p1046422'])[0],
 
   /** Titelbilder der Serien */
-  covers: { 'new-york': 'p1046414', 'usa-roadtrip': '_a670198' } as Record<string, string>,
+  covers: { 'new-york': 'p1046414', 'usa-roadtrip': '_a670198', 'hard-juniors': '_a671060' } as Record<string, string>,
 
   /** Vorschaubild beim Teilen auf Social Media */
   share: pick(['p1045650'])[0],

@@ -6,3 +6,5 @@ next-env.d.ts
 *.tsbuildinfo
 # Lokale Ordnerpfade zu den Originalfotos
 photos.sources.json
+# Heruntergeladene Originale (zu groß fürs Repo)
+_originale/
