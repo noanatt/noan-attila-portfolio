@@ -1,0 +1,76 @@
+.hero {
+  position: relative;
+  height: 420svh; /* Länge der Kamerafahrt */
+  background: var(--night);
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 2s var(--ease-out);
+}
+.ready { opacity: 1; }
+
+/* Dunkler Rand, damit der Text immer lesbar bleibt */
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent 45%),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.6));
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 1fr auto;
+  padding: 0 var(--gutter) clamp(20px, 3vw, 40px);
+}
+
+.title {
+  grid-column: 1 / -1;
+  align-self: end;
+  font-size: clamp(76px, 19.5vw, 340px);
+  font-weight: 500;
+  letter-spacing: -0.065em;
+  line-height: 0.8;
+  margin-left: -0.04em;
+  will-change: transform, opacity;
+}
+.line { display: block; overflow: hidden; padding-bottom: 0.06em; }
+.line + .line { margin-top: -0.04em; }
+.char { display: inline-block; }
+
+.kicker,
+.hint {
+  font-size: 15px;
+  margin-top: clamp(14px, 2vw, 24px);
+}
+.hint { justify-self: end; color: var(--muted); }
+
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--sodium);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero { height: 100svh; }
+}

@@ -1,0 +1,65 @@
+.page {
+  background: var(--paper);
+  color: var(--ink);
+  padding-top: clamp(120px, 22vh, 240px);
+}
+
+.head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 24px;
+  padding: 0 var(--gutter);
+  margin-bottom: clamp(48px, 8vw, 120px);
+}
+.title {
+  font-size: clamp(60px, 13vw, 230px);
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  line-height: 0.84;
+}
+.line { display: block; overflow: hidden; padding-bottom: 0.06em; }
+.char { display: inline-block; }
+.meta { max-width: 32ch; text-align: right; }
+.meta p { margin-bottom: 8px; }
+.count { color: var(--muted); }
+
+/* Masonry über CSS-Spalten */
+.grid {
+  columns: 3;
+  column-gap: clamp(10px, 1.6vw, 24px);
+  padding: 0 var(--gutter);
+}
+.item {
+  display: block;
+  width: 100%;
+  break-inside: avoid;
+  margin-bottom: clamp(10px, 1.6vw, 24px);
+  cursor: zoom-in;
+}
+.item :global(.photo img) { transition: opacity 0.8s var(--ease-out), transform 0.9s var(--ease-out); }
+.item:hover :global(.photo img) { transform: scale(1.03); }
+
+.next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px 32px;
+  padding: clamp(100px, 18vh, 200px) var(--gutter);
+}
+.nextLabel { color: var(--muted); width: 100%; }
+.nextLink {
+  font-size: clamp(44px, 8vw, 140px);
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 0.9;
+  transition: color 0.3s;
+}
+.nextLink:hover { color: var(--sodium); }
+
+@media (max-width: 900px) { .grid { columns: 2; } }
+@media (max-width: 560px) {
+  .grid { columns: 1; }
+  .head { grid-template-columns: 1fr; }
+  .meta { text-align: left; }
+}

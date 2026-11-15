@@ -1,0 +1,13 @@
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px 32px;
+  padding: 28px var(--gutter) 32px;
+  font-size: 14px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+.links { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.links a { transition: color 0.2s; }
+.links a:hover { color: var(--sodium); }
