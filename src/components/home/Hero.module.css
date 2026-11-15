@@ -1,6 +1,6 @@
 .hero {
   position: relative;
-  height: 600svh; /* Länge der Kamerafahrt */
+  height: 900svh; /* Länge des Flugs durch das Foto-Universum */
   background: #000;
   color: var(--light);
 }
@@ -24,13 +24,7 @@
   overflow: hidden;
 }
 
-.canvas {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 2s var(--ease-out);
-}
-.ready { opacity: 1; }
+.canvas { position: absolute; inset: 0; }
 
 /* Dunkler Rand, damit der Text immer lesbar bleibt */
 .vignette {

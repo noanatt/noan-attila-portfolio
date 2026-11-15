@@ -154,8 +154,8 @@ export const toneFor = (p: Photo) => deepTone(p.key);
    AUSWAHL FÜR DIE STARTSEITE
    ------------------------------------------------------------------ */
 export const featured = {
-  /** Fotos im 3D-Tunnel: über das ganze Farbspektrum verteilt */
-  hero: spread(spectrum, 36),
+  /** Fotos im 3D-Universum: über das ganze Farbspektrum verteilt (Handy: 48) */
+  hero: spread(spectrum, 120),
 
   /** Großes Foto hinter dem Zitat (am besten Querformat) */
   reveal: pick(['p1046422'])[0],

@@ -5,7 +5,7 @@
  * (sticky), während der Scroll-Fortschritt die Kamerafahrt steuert.
  */
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { allPhotos, featured, spread } from '@/content/photos';
 import { site } from '@/content/site';
 import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from '@/lib/gsap';
@@ -19,14 +19,12 @@ export default function Hero() {
   const section = useRef<HTMLElement>(null);
   const progress = useRef(0);
   const [active, setActive] = useState(true);
-  const [ready, setReady] = useState(false);
-  const handleReady = useCallback(() => setReady(true), []);
-  // Auf dem Handy weniger Fotos (schnelleres Laden, ruhigeres Bild)
-  const [photos, setPhotos] = useState(featured.hero);
+  // Auf dem Handy weniger Fotos (schnelleres Laden, flüssigere Darstellung)
+  const [photos, setPhotos] = useState<typeof featured.hero | null>(null);
   const { open } = useLightbox();
 
   useEffect(() => {
-    if (window.innerWidth < 700) setPhotos(spread(featured.hero, 24));
+    setPhotos(window.innerWidth < 700 ? spread(featured.hero, 48) : featured.hero);
   }, []);
 
   // 3D-Rendering pausieren, wenn der Hero nicht sichtbar ist (spart Akku)
@@ -77,14 +75,15 @@ export default function Hero() {
   return (
     <section ref={section} className={styles.hero} aria-label="Einstieg" data-ambient="#000000">
       <div className={styles.sticky}>
-        <div className={`${styles.canvas} ${ready ? styles.ready : ''}`}>
-          <HeroScene
-            photos={photos}
-            progress={progress}
-            active={active}
-            onSelect={(i) => open(photos, i)}
-            onReady={handleReady}
-          />
+        <div className={styles.canvas}>
+          {photos && (
+            <HeroScene
+              photos={photos}
+              progress={progress}
+              active={active}
+              onSelect={(i) => open(photos, i)}
+            />
+          )}
         </div>
         <div className={styles.vignette} aria-hidden="true" />
 
@@ -101,7 +100,7 @@ export default function Hero() {
           <p className={styles.kicker} data-fade>{site.heroKicker}</p>
           <span className={styles.hint} data-fade>{site.heroHint}</span>
           <p className={styles.wall} data-wall>
-            {photos.length} von {allPhotos.length} Fotos, {site.heroWallCaption}
+            {photos?.length ?? featured.hero.length} von {allPhotos.length} Fotos, {site.heroWallCaption}
           </p>
         </div>
 
