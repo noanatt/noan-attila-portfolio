@@ -1,37 +1,18 @@
 'use client';
 /**
  * Ein Foto öffnet sich beim Scrollen aus einem schmalen Bogenfenster zum
- * Vollbild, danach erscheint das Zitat darüber. Mit der Maus wirft das Foto
- * Wasserwellen (eigener WebGL-Shader, nachgeladen).
+ * Vollbild, danach erscheint das Zitat darüber.
  */
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { featured, photoSrc, toneFor } from '@/content/photos';
+import { useRef } from 'react';
+import { featured, toneFor } from '@/content/photos';
 import { site } from '@/content/site';
 import { gsap, SplitText, useGSAP, prefersReducedMotion } from '@/lib/gsap';
 import Photo from '../Photo';
 import styles from './QuoteReveal.module.css';
 
-const RippleShader = lazy(() => import('./RippleShader'));
-
 export default function QuoteReveal() {
   const ref = useRef<HTMLElement>(null);
   const photo = featured.reveal;
-  const [shaderOn, setShaderOn] = useState(false);
-  const [shaderReady, setShaderReady] = useState(false);
-
-  // Nur mit Maus und ohne „Bewegung reduzieren“
-  useEffect(() => {
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const fine = window.matchMedia('(pointer: fine)');
-    const sync = () => {
-      const on = !reduce.matches && fine.matches;
-      setShaderOn(on);
-      if (!on) setShaderReady(false);
-    };
-    sync();
-    reduce.addEventListener('change', sync);
-    return () => reduce.removeEventListener('change', sync);
-  }, []);
 
   useGSAP(() => {
     if (prefersReducedMotion()) return;
@@ -57,16 +38,6 @@ export default function QuoteReveal() {
         <div className={styles.frame} data-frame>
           <div className={styles.zoom} data-zoom>
             <Photo photo={photo} size="lg" fill />
-            {shaderOn && (
-              <Suspense fallback={null}>
-                <RippleShader
-                  className={styles.ripple}
-                  imageUrl={photoSrc(photo, 'lg')}
-                  ready={shaderReady}
-                  onReady={() => setShaderReady(true)}
-                />
-              </Suspense>
-            )}
           </div>
         </div>
         <div className={styles.shade} data-shade aria-hidden="true" />
