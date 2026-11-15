@@ -2,7 +2,9 @@
 
 Foto-Portfolio mit Next.js (React), GSAP-Scrollanimationen, weichem Scrollen (Lenis)
 und einer 3D-Szene (Three.js / React Three Fiber). Die Seite wird als rein statische
-Website exportiert und läuft auf GitHub Pages, Netlify oder Vercel.
+Website exportiert und läuft auf GitHub Pages.
+
+**Live:** https://noanattila.com
 
 ## Lokal starten
 
@@ -91,15 +93,33 @@ Version ohne Kamerafahrt, Parallax und weiches Scrollen.
 
 ## Veröffentlichen
 
-**GitHub Pages:** Jeder Push auf `main` baut und veröffentlicht die Seite automatisch
-(siehe `.github/workflows/deploy.yml`). In den Repo-Einstellungen unter
-*Settings → Pages* muss als Quelle „GitHub Actions“ ausgewählt sein.
+Die Seite liegt unter **https://noanattila.com** (www.noanattila.com leitet automatisch dorthin weiter).
 
-```bash
-git add .
-git commit -m "Neue Fotos"
-git push
-```
+**So läuft der Deploy:** Jeder Push auf `main` startet den Workflow
+`.github/workflows/deploy.yml`. GitHub baut die Seite dort mit `npm run build` und
+veröffentlicht den Ordner `out/` auf GitHub Pages. Nach 2–3 Minuten ist die neue
+Version online. Den Fortschritt siehst du im Repository unter *Actions*.
 
-**Netlify / Vercel:** Repository verbinden, Build-Befehl `npm run build`,
-Ausgabeordner `out`. Dort keinen `NEXT_PUBLIC_BASE_PATH` setzen.
+- Domain: hinterlegt unter *Settings → Pages → Custom domain* (`noanattila.com`),
+  zusätzlich liegt `public/CNAME` im Projekt. Dort ist auch „Enforce HTTPS“ gesetzt.
+- DNS bei Cloudflare (alles „DNS only“, keine orange Wolke):
+  A-Records `@` → 185.199.108.153 bis 185.199.111.153,
+  AAAA-Records `@` → 2606:50c0:8000::153 bis 2606:50c0:8003::153,
+  CNAME `www` → `noanatt.github.io`.
+- Basis-URL für Metadaten, Sitemap und robots.txt: `url` in `src/content/site.ts`.
+
+### Neue Fotos online stellen
+
+1. Fotos in einen Ordner legen, der in `photos.sources.json` eingetragen ist
+   (oder dort eine neue Serie ergänzen).
+2. `npm run photos` ausführen. Web-Versionen und Farbdaten werden erzeugt.
+3. Optional: in `src/content/site.ts` Kapitel-Highlights oder Serientexte anpassen,
+   in `src/content/photos.ts` die Titelbilder (`featured`).
+4. Lokal prüfen mit `npm run dev` (http://localhost:3000).
+5. Veröffentlichen:
+
+   ```bash
+   git add .
+   git commit -m "Neue Fotos"
+   git push
+   ```
