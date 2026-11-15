@@ -22,7 +22,7 @@ import * as THREE from 'three';
 import { photoSrc, type Photo } from '@/content/photos';
 import { isNeutral } from '@/lib/color';
 import type { LightboxOrigin } from '../Lightbox';
-import HeroEffects from './HeroEffects';
+import HeroEffects, { heroQuality, saveHeroQuality } from './HeroEffects';
 
 /* Stellschrauben ---------------------------------------------------- */
 const SPACING = 0.55;        // mittlerer Abstand der Fotos in der Tiefe
@@ -249,6 +249,7 @@ function Print({ photo, item, index, count, wallZ, progress, hover, lifted, onSe
   const mesh = useRef<THREE.Mesh>(null);
   const mat = useRef<THREE.MeshBasicMaterial>(null);
   const frame = useRef<THREE.MeshBasicMaterial>(null);
+  const frameMesh = useRef<THREE.Mesh>(null);
   const state = useRef({ appear: 0, intro: 0, hover: 1 });
 
   useFrame((three, delta) => {
@@ -304,6 +305,8 @@ function Print({ photo, item, index, count, wallZ, progress, hover, lifted, onSe
     const scale = THREE.MathUtils.lerp(1, item.wall.scale, local) * s.hover;
     m.scale.set(scale, scale, 1);
     if (frame.current) frame.current.opacity = local * local;
+    // Passepartout erst zeichnen, wenn es sichtbar wird (spart 150 durchsichtige Flächen)
+    if (frameMesh.current) frameMesh.current.visible = local > 0.002;
   });
 
   return (
@@ -341,7 +344,7 @@ function Print({ photo, item, index, count, wallZ, progress, hover, lifted, onSe
       <planeGeometry args={item.size} />
       <meshBasicMaterial ref={mat} map={PLACEHOLDER} toneMapped={false} color="#000000" />
       {/* Passepartout in der Schlüsselfarbe – erscheint erst an der Farbwand */}
-      <mesh position-z={-0.01} raycast={() => null}>
+      <mesh ref={frameMesh} position-z={-0.01} raycast={() => null} visible={false}>
         <planeGeometry args={[item.size[0] + MAT * 2, item.size[1] + MAT * 2]} />
         <meshBasicMaterial ref={frame} color={photo.key.hex} transparent opacity={0} toneMapped={false} />
       </mesh>
@@ -425,6 +428,60 @@ function Stars({ depth }: { depth: number }) {
   );
 }
 
+/* ------------------------------------------------------------------
+   Software-Rendering erkennen: Der Browser nutzt keine Grafikkarte
+   (Grafikbeschleunigung aus, Treiber fehlt oder gesperrt). Dann rechnet der
+   Prozessor jedes Pixel – Effekte aus, Auflösung etwas geringer.
+   ------------------------------------------------------------------ */
+const SOFTWARE_DPR = 0.75;
+function isSoftwareRenderer(gl: THREE.WebGLRenderer) {
+  const ctx = gl.getContext();
+  const ext = ctx.getExtension('WEBGL_debug_renderer_info');
+  const name = ext ? String(ctx.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+  return /swiftshader|basic render|llvmpipe|software|softpipe/i.test(name);
+}
+
+/* ------------------------------------------------------------------
+   Messwerte zur Fehlersuche: Seite mit ?debug am Ende aufrufen
+   (z. B. noanattila.com/?debug) → oben links erscheinen Bildrate, Stufe, Grafikkarte
+   ------------------------------------------------------------------ */
+const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
+
+function DebugInfo() {
+  const gl = useThree((st) => st.gl);
+  const meter = useRef({ t: 0, frames: 0, worst: 0 });
+  const box = useMemo(() => {
+    const el = document.createElement('pre');
+    el.style.cssText = 'position:fixed;left:8px;top:60px;z-index:300;margin:0;padding:8px 10px;font:12px/1.4 monospace;background:rgba(0,0,0,.75);color:#9f9;pointer-events:none;white-space:pre';
+    return el;
+  }, []);
+  useEffect(() => {
+    document.body.appendChild(box);
+    return () => box.remove();
+  }, [box]);
+  const gpu = useMemo(() => {
+    const ctx = gl.getContext();
+    const ext = ctx.getExtension('WEBGL_debug_renderer_info');
+    return ext ? String(ctx.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : 'unbekannt';
+  }, [gl]);
+  useFrame((_, delta) => {
+    const m = meter.current;
+    m.t += delta;
+    m.frames++;
+    m.worst = Math.max(m.worst, delta);
+    if (m.t < 0.5) return;
+    const size = gl.getDrawingBufferSize(new THREE.Vector2());
+    box.textContent = [
+      `Bilder/s:   ${Math.round(m.frames / m.t)}  (langsamstes: ${Math.round(m.worst * 1000)} ms)`,
+      `Stufe:      ${heroQuality.effects ? heroQuality.level : 'Effekte aus'}${isSoftwareRenderer(gl) ? ' (ohne Grafikkarte)' : ''}`,
+      `Auflösung:  ${size.x}×${size.y} (dpr ${gl.getPixelRatio()})`,
+      `Grafik:     ${gpu}`,
+    ].join('\n');
+    meter.current = { t: 0, frames: 0, worst: 0 };
+  }); // Priorität 0: übernimmt nicht das Zeichnen
+  return null;
+}
+
 /* ------------------------------------------------------------------ */
 function Universe({ photos, progress, onSelect }: Omit<Props, 'active' | 'eventSource'>) {
   const { items, camEnd, wallZ, byDepth } = useLayout(photos);
@@ -434,10 +491,22 @@ function Universe({ photos, progress, onSelect }: Omit<Props, 'active' | 'eventS
   const textures = usePhotoTextures(photos);
   // Nachbearbeitung nur auf größeren Bildschirmen (auf Handys zu rechenintensiv)
   const wide = useThree((s) => s.size.width >= 700);
+  const setDpr = useThree((s) => s.setDpr);
+  const gl = useThree((s) => s.gl);
+  // Ohne Grafikkarte (Software-Rendering) gleich sparsam starten statt erst zu messen
+  const software = useMemo(() => isSoftwareRenderer(gl), [gl]);
+  const [effects, setEffects] = useState(heroQuality.effects && !software);
+  useEffect(() => {
+    if (software) { heroQuality.effects = false; setDpr(SOFTWARE_DPR); }
+    else if (!heroQuality.effects) setDpr(1);
+  }, [software, setDpr]);
   return (
     <>
       <Rig photos={photos} progress={progress} camEnd={camEnd} byDepth={byDepth} warpOut={warp} />
-      {wide && <HeroEffects warp={warp} />}
+      {wide && effects && (
+        <HeroEffects warp={warp} onGiveUp={() => { setDpr(1); setEffects(false); saveHeroQuality(); }} />
+      )}
+      {DEBUG && <DebugInfo />}
       <Stars depth={photos.length * SPACING} />
       {photos.map((p, i) => (
         <Print
@@ -466,7 +535,9 @@ export default function HeroScene({ photos, progress, active, onSelect, eventSou
       dpr={[1, 1.5]}
       frameloop={active ? 'always' : 'never'}
       camera={{ position: [0, 0, CAMERA_START], fov: FOV, near: 0.1, far: 200 }}
-      gl={{ antialias: true, powerPreference: 'high-performance' }}
+      // Kantenglättung des Canvas nur auf Handys; auf großen Bildschirmen glättet die
+      // Nachbearbeitung selbst – doppelt geglättet kostet viel und bringt nichts
+      gl={{ antialias: typeof window !== 'undefined' && window.innerWidth < 700, powerPreference: 'high-performance' }}
       eventSource={eventSource as RefObject<HTMLElement>}
       eventPrefix="client"
       scene={{ background: bg }}
