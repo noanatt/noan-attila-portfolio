@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'About', description: site.about[0] }
 
 export default function About() {
   return (
-    <article className={styles.page}>
+    <article className={styles.page} data-ambient="#e9e7e2" data-ambient-fg="#0d0d0d">
       <h1 className={styles.title}>About</h1>
       {/* Platzhalter für ein Porträt: <div className={styles.portrait}><img src=... /></div> */}
       <div className={`${styles.body} ${styles.lead}`}>

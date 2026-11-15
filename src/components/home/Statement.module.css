@@ -1,5 +1,4 @@
 .statement {
-  background: var(--night);
   padding: clamp(120px, 22vh, 260px) var(--gutter) clamp(140px, 26vh, 300px);
 }
 .text {

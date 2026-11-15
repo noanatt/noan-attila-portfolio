@@ -2,13 +2,16 @@
  * FOTOS
  * ------------------------------------------------------------------
  * `photos.generated.json` wird von `npm run photos` erzeugt – nicht von Hand bearbeiten.
+ * Hier steht, wie die Fotos sortiert, nach Farben gruppiert und auf der
+ * Startseite verteilt werden.
  *
- * Hier wählst du nur aus, WELCHE Fotos auf der Startseite wo erscheinen.
- * Die IDs sind die Dateinamen in Kleinbuchstaben ohne Endung,
+ * Foto-IDs sind die Dateinamen in Kleinbuchstaben ohne Endung,
  * z. B. "P1045650.jpg" → "p1045650".
  */
 import data from './photos.generated.json';
 import { asset } from '@/lib/asset';
+import { deepTone, accentTone, hueDistance, isNeutral, meanHue, type HSL } from '@/lib/color';
+import { site } from './site';
 
 export type Photo = {
   id: string;
@@ -17,58 +20,142 @@ export type Photo = {
   height: number;
   /** Dominante Farbe – wird angezeigt, solange das Bild lädt */
   color: string;
+  /** 5 Farben des Fotos, häufigste zuerst */
+  palette: string[];
+  /** Prägnanteste Farbe des Fotos */
+  key: HSL & { hex: string };
+  /** Mittlere Helligkeit 0–100 */
+  lightness: number;
 };
 
 export type Series = { slug: string; title: string; photos: Photo[] };
 
+type RawPhoto = Omit<Photo, 'series' | 'palette' | 'key' | 'lightness'> & Partial<Photo>;
+
 export const series: Series[] = data.series.map((s) => ({
   slug: s.slug,
   title: s.title,
-  photos: s.photos.map((p) => ({ ...p, series: s.slug })),
+  photos: (s.photos as RawPhoto[]).map((p) => ({
+    palette: [p.color],
+    key: { hex: p.color, h: 0, s: 0, l: 20 },
+    lightness: 20,
+    ...p,
+    series: s.slug,
+  })),
 }));
+
+export const allPhotos: Photo[] = series.flatMap((s) => s.photos);
 
 export function getSeries(slug: string): Series | undefined {
   return series.find((s) => s.slug === slug);
 }
 
-/** URL eines Fotos. 'sm' = max. 900 px, 'lg' = max. 2200 px */
-export function photoSrc(photo: Photo, size: 'sm' | 'lg' = 'sm'): string {
+/** URL eines Fotos. 'xs' = 480 px, 'sm' = 900 px, 'lg' = 2200 px */
+export function photoSrc(photo: Photo, size: 'xs' | 'sm' | 'lg' = 'sm'): string {
   return asset(`/photos/${photo.series}/${photo.id}-${size}.jpg`);
 }
 
 /** Sucht Fotos per ID (über alle Serien). Unbekannte IDs werden ignoriert. */
-function pick(ids: string[]): Photo[] {
-  const all = series.flatMap((s) => s.photos);
-  return ids.map((id) => all.find((p) => p.id === id)).filter((p): p is Photo => Boolean(p));
+export function pick(ids: string[]): Photo[] {
+  return ids.map((id) => allPhotos.find((p) => p.id === id)).filter((p): p is Photo => Boolean(p));
 }
 
 /* ------------------------------------------------------------------
-   AUSWAHL FÜR DIE STARTSEITE – hier einfach IDs tauschen
+   SPEKTRUM: alle Fotos nach Farbe sortiert
+   Erst die neutralen (dunkel → hell), dann einmal um den Farbkreis:
+   Blau → Violett → Rot → Orange → Gelb → Grün.
+   ------------------------------------------------------------------ */
+const SPECTRUM_START = 165;
+export function spectrumSort(photos: Photo[]): Photo[] {
+  const neutral = photos.filter((p) => isNeutral(p.key)).sort((a, b) => a.lightness - b.lightness);
+  const chroma = photos
+    .filter((p) => !isNeutral(p.key))
+    .sort((a, b) => ((a.key.h - SPECTRUM_START + 360) % 360) - ((b.key.h - SPECTRUM_START + 360) % 360) || a.key.l - b.key.l);
+  return [...neutral, ...chroma];
+}
+export const spectrum = spectrumSort(allPhotos);
+
+/** Gleichmäßig verteilte Auswahl aus einer Liste */
+export function spread<T>(list: T[], count: number): T[] {
+  if (list.length <= count) return list;
+  return Array.from({ length: count }, (_, i) => list[Math.floor((i * list.length) / count)]);
+}
+
+/* ------------------------------------------------------------------
+   FARBKAPITEL
+   Definiert in site.ts (Name, Text, Farbtöne). Jedes Foto landet im
+   Kapitel, dessen Farbtonbereich passt; neutrale Fotos im Kapitel ohne Farbton.
+   ------------------------------------------------------------------ */
+export type Chapter = {
+  slug: string;
+  title: string;
+  text: string;
+  photos: Photo[];
+  /** Hintergrund, Text- und Akzentfarbe des Kapitels */
+  tone: { bg: string; fg: string; accent: string; light: boolean };
+  /** Farbmuster für die Kopfzeile des Kapitels */
+  swatches: string[];
+};
+
+function inRange(h: number, [from, to]: [number, number]) {
+  return from <= to ? h >= from && h < to : h >= from || h < to;
+}
+
+export const chapters: Chapter[] = (() => {
+  const defs = site.chapters;
+  const buckets = new Map<string, Photo[]>(defs.map((d) => [d.slug, []]));
+  const neutralDef = defs.find((d) => !d.hues);
+  const chromaDefs = defs.filter((d) => d.hues);
+
+  for (const p of allPhotos) {
+    if (isNeutral(p.key) && neutralDef) { buckets.get(neutralDef.slug)!.push(p); continue; }
+    const hit = chromaDefs.find((d) => d.hues!.some((r) => inRange(p.key.h, r)));
+    // Kein Bereich passt → nächstgelegenes Kapitel auf dem Farbkreis
+    const target = hit ?? [...chromaDefs].sort((a, b) =>
+      hueDistance(p.key.h, (a.hues![0][0] + a.hues![0][1]) / 2) - hueDistance(p.key.h, (b.hues![0][0] + b.hues![0][1]) / 2))[0];
+    buckets.get(target.slug)!.push(p);
+  }
+
+  return defs
+    .map((d) => {
+      const photos = spectrumSort(buckets.get(d.slug)!);
+      const h = meanHue(photos.filter((p) => !isNeutral(p.key)).map((p) => p.key.h));
+      const s = photos.length ? photos.reduce((sum, p) => sum + p.key.s, 0) / photos.length : 0;
+      const light = !d.hues; // das neutrale Kapitel bekommt einen hellen Hintergrund
+      const tone = light
+        ? { bg: '#e9e7e2', fg: '#0d0d0d', accent: '#6f6c66', light }
+        : { bg: deepTone({ h, s, l: 40 }), fg: '#f3f0ea', accent: accentTone({ h, s, l: 50 }), light };
+      // 6 Farbmuster: die Schlüsselfarben, gleichmäßig über das Kapitel verteilt
+      const swatches = spread(photos, 6).map((p) => p.key.hex);
+      return { slug: d.slug, title: d.title, text: d.text, photos, tone, swatches };
+    })
+    .filter((c) => c.photos.length > 0);
+})();
+
+/** Die Fotos eines Kapitels, die auf der Startseite erscheinen */
+export function chapterHighlights(chapter: Chapter, count = 8): Photo[] {
+  const manual = site.chapters.find((d) => d.slug === chapter.slug)?.highlights;
+  if (manual?.length) return pick(manual);
+  // Automatisch: die farbkräftigsten Fotos, gleichmäßig über das Kapitel verteilt
+  const ranked = [...chapter.photos].sort((a, b) => b.key.s * (1 + b.lightness / 100) - a.key.s * (1 + a.lightness / 100));
+  const top = ranked.slice(0, Math.max(count * 2, count));
+  return spectrumSort(spread(spectrumSort(top), count));
+}
+
+export const toneFor = (p: Photo) => deepTone(p.key);
+
+/* ------------------------------------------------------------------
+   AUSWAHL FÜR DIE STARTSEITE
    ------------------------------------------------------------------ */
 export const featured = {
-  /** Fotos, die in der 3D-Szene im Raum schweben (ca. 10–16) */
-  hero: pick([
-    'p1045650', '_a670198', 'p1045834', '_a670283', 'p1046414', '_a670302',
-    'p1045989', '_a670322', 'p1046493', '_a670285', 'p1046020', '_a670452',
-    'p1046564', '_a670473',
-  ]),
+  /** Fotos im 3D-Tunnel: über das ganze Farbspektrum verteilt */
+  hero: spread(spectrum, 36),
 
-  /** Parallax-Galerie „New York“ */
-  newYork: pick([
-    'p1045650', 'p1045834', 'p1046414', 'p1045989', 'p1046020', 'p1046186',
-    'p1046258', 'p1046384', 'p1046265', 'p1046029', 'p1046457', 'p1046508',
-    'p1045761', 'p1046564', 'p1046493',
-  ]),
-
-  /** Horizontaler Filmstreifen „USA Roadtrip“ */
-  roadtrip: pick([
-    '_a670090', '_a670120', '_a670156', '_a670198', '_a670188', '_a670232',
-    '_a670302', '_a670283', '_a670285', '_a670322', '_a670344', '_a670366',
-    '_a670452', '_a670496',
-  ]),
-
-  /** Großes Vollbild-Foto hinter dem Zitat (am besten Querformat) */
+  /** Großes Foto hinter dem Zitat (am besten Querformat) */
   reveal: pick(['p1046422'])[0],
+
+  /** Titelbilder der Serien */
+  covers: { 'new-york': 'p1046414', 'usa-roadtrip': '_a670198' } as Record<string, string>,
 
   /** Vorschaubild beim Teilen auf Social Media */
   share: pick(['p1045650'])[0],

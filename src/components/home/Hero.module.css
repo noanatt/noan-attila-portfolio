@@ -1,7 +1,20 @@
 .hero {
   position: relative;
-  height: 420svh; /* Länge der Kamerafahrt */
-  background: var(--night);
+  height: 600svh; /* Länge der Kamerafahrt */
+  background: #000;
+  color: var(--light);
+}
+
+/* Bildunterschrift unter der Farbwand */
+.wall {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: clamp(28px, 6vh, 64px);
+  text-align: center;
+  font-size: 15px;
+  color: rgba(243, 240, 234, 0.7);
+  opacity: 0;
 }
 
 .sticky {

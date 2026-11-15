@@ -1,0 +1,17 @@
+.grid {
+  columns: 3;
+  column-gap: clamp(10px, 1.6vw, 24px);
+  padding: 0 var(--gutter);
+}
+.item {
+  display: block;
+  width: 100%;
+  break-inside: avoid;
+  margin-bottom: clamp(10px, 1.6vw, 24px);
+  cursor: zoom-in;
+}
+.item :global(.photo img) { transition: opacity 0.8s var(--ease-out), transform 0.9s var(--ease-out); }
+.item:hover :global(.photo img) { transform: scale(1.03); }
+
+@media (max-width: 900px) { .grid { columns: 2; } }
+@media (max-width: 560px) { .grid { columns: 1; } }

@@ -1,42 +1,34 @@
 'use client';
 /**
- * Alle Fotos einer Serie als Masonry-Raster (Hoch- und Querformat gemischt).
- * Desktop 3 Spalten, Tablet 2, Handy 1. Spalten mit leichtem Parallax.
+ * Serienseite: Titel, Text, Umschalter für die Sortierung (Reihenfolge / Farbe)
+ * und alle Fotos der Serie.
  */
 import Link from 'next/link';
-import { useRef } from 'react';
-import type { Series } from '@/content/photos';
+import { useMemo, useRef, useState } from 'react';
+import { spectrumSort, spread, type Series } from '@/content/photos';
 import { gsap, useGSAP, prefersReducedMotion } from '@/lib/gsap';
-import Photo from './Photo';
-import { useLightbox } from './Lightbox';
+import PhotoGrid from './PhotoGrid';
 import styles from './SeriesGallery.module.css';
 
 type Props = { series: Series; intro?: string; others: Series[] };
+type Sort = 'original' | 'farbe';
 
 export default function SeriesGallery({ series, intro, others }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const { open } = useLightbox();
+  const [sort, setSort] = useState<Sort>('original');
+  const photos = useMemo(
+    () => (sort === 'farbe' ? spectrumSort(series.photos) : series.photos),
+    [sort, series.photos],
+  );
+  const swatches = useMemo(() => spread(spectrumSort(series.photos), 9).map((p) => p.key.hex), [series.photos]);
 
   useGSAP(() => {
-    const reduced = prefersReducedMotion();
-    gsap.from('[data-char]', { yPercent: 110, duration: reduced ? 0 : 1.2, ease: 'expo.out', stagger: 0.03 });
-    if (reduced) return;
-
-    // Fotos tauchen beim Erreichen leicht von unten auf
-    gsap.utils.toArray<HTMLElement>('[data-item]').forEach((el) => {
-      gsap.from(el, {
-        y: 60,
-        opacity: 0,
-        duration: 1.1,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: el, start: 'top 92%', once: true },
-      });
-    });
+    gsap.from('[data-char]', { yPercent: 110, duration: prefersReducedMotion() ? 0 : 1.2, ease: 'expo.out', stagger: 0.03 });
   }, { scope: ref });
 
   return (
     <div ref={ref} className={styles.page}>
-      <header className={styles.head}>
+      <header className={styles.head} data-ambient="#000000">
         <h1 className={styles.title}>
           <span className={styles.line}>
             {series.title.split('').map((c, i) => (
@@ -46,32 +38,27 @@ export default function SeriesGallery({ series, intro, others }: Props) {
         </h1>
         <div className={styles.meta}>
           {intro && <p>{intro}</p>}
-          <p className={styles.count}>{series.photos.length} Fotos</p>
+          <ul className="swatches" aria-hidden="true">
+            {swatches.map((c, i) => <li key={i} style={{ ['--c' as string]: c }} />)}
+          </ul>
         </div>
       </header>
 
-      <div className={styles.grid}>
-        {series.photos.map((photo, i) => (
-          <button
-            key={photo.id}
-            type="button"
-            className={styles.item}
-            data-item
-            onClick={() => open(series.photos, i)}
-            aria-label={`Foto ${i + 1} von ${series.photos.length} öffnen`}
-          >
-            <Photo photo={photo} />
-          </button>
-        ))}
+      <div className={styles.toolbar}>
+        <span className={styles.count}>{series.photos.length} Fotos</span>
+        <div className={styles.toggle} role="group" aria-label="Sortierung">
+          <button type="button" aria-pressed={sort === 'original'} onClick={() => setSort('original')}>Reihenfolge</button>
+          <button type="button" aria-pressed={sort === 'farbe'} onClick={() => setSort('farbe')}>Nach Farbe</button>
+        </div>
       </div>
 
+      <PhotoGrid photos={photos} label={series.title} />
+
       {others.length > 0 && (
-        <nav className={styles.next} aria-label="Weitere Serien">
+        <nav className={styles.next} aria-label="Weitere Serien" data-ambient="#000000">
           <span className={styles.nextLabel}>Nächste Serie</span>
           {others.map((o) => (
-            <Link key={o.slug} href={`/serien/${o.slug}/`} className={styles.nextLink}>
-              {o.title}
-            </Link>
+            <Link key={o.slug} href={`/serien/${o.slug}/`} className={styles.nextLink}>{o.title}</Link>
           ))}
         </nav>
       )}

@@ -2,11 +2,16 @@
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.97);
+  /* Hintergrund in einem tiefen Ton der Fotofarbe, wechselt weich beim Blättern */
+  background: var(--tone, #000);
+  transition: background-color 0.8s var(--ease-out);
+  color: var(--light);
+  --fg: var(--light);
   display: grid;
   grid-template-rows: 1fr auto;
   animation: fade 0.35s var(--ease-out);
 }
+.info { display: flex; align-items: center; gap: 18px; }
 
 .figure {
   display: flex;
@@ -36,7 +41,7 @@
   font-size: 14px;
   color: var(--light);
 }
-.count { font-variant-numeric: tabular-nums; color: var(--muted); }
+.count { font-variant-numeric: tabular-nums; color: rgba(243, 240, 234, 0.6); }
 .controls { display: flex; gap: 28px; }
 .controls button { opacity: 0.85; transition: opacity 0.2s; padding: 6px 0; }
 .controls button:hover { opacity: 1; color: var(--sodium); }

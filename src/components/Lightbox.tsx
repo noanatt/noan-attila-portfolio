@@ -5,7 +5,7 @@
  * Bedienung: ESC schließt, Pfeiltasten blättern, Wischen auf dem Handy.
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { photoSrc, type Photo } from '@/content/photos';
+import { photoSrc, toneFor, type Photo } from '@/content/photos';
 import { useLenis } from './SmoothScroll';
 import styles from './Lightbox.module.css';
 
@@ -74,6 +74,7 @@ export function LightboxProvider({ children }: { children: React.ReactNode }) {
       {state && photo && (
         <div
           className={styles.overlay}
+          style={{ ['--tone' as string]: toneFor(photo) }}
           role="dialog"
           aria-modal="true"
           aria-label="Foto in groß"
@@ -95,9 +96,14 @@ export function LightboxProvider({ children }: { children: React.ReactNode }) {
             />
           </figure>
           <div className={styles.bar}>
-            <span className={styles.count}>
-              {state.index + 1} / {state.photos.length}
-            </span>
+            <div className={styles.info}>
+              <span className={styles.count}>
+                {state.index + 1} / {state.photos.length}
+              </span>
+              <ul className="swatches" aria-label="Farbpalette des Fotos">
+                {photo.palette.map((c) => <li key={c} title={c} style={{ ['--c' as string]: c }} />)}
+              </ul>
+            </div>
             <div className={styles.controls}>
               <button type="button" onClick={() => step(-1)}>Zurück</button>
               <button type="button" onClick={() => step(1)}>Weiter</button>

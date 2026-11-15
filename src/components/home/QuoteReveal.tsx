@@ -1,10 +1,10 @@
 'use client';
 /**
- * Ein Foto öffnet sich beim Scrollen von einem kleinen Ausschnitt zum
+ * Ein Foto öffnet sich beim Scrollen aus einem schmalen Bogenfenster zum
  * Vollbild, danach erscheint das Zitat darüber.
  */
 import { useRef } from 'react';
-import { featured } from '@/content/photos';
+import { featured, toneFor } from '@/content/photos';
 import { site } from '@/content/site';
 import { gsap, useGSAP, prefersReducedMotion } from '@/lib/gsap';
 import Photo from '../Photo';
@@ -19,8 +19,10 @@ export default function QuoteReveal() {
     const tl = gsap.timeline({
       scrollTrigger: { trigger: ref.current, start: 'top top', end: 'bottom bottom', scrub: true },
     });
-    tl.fromTo('[data-frame]', { clipPath: 'inset(28% 32% 28% 32%)' }, { clipPath: 'inset(0% 0% 0% 0%)', ease: 'none', duration: 1 })
-      .fromTo('[data-frame] img', { scale: 1.35 }, { scale: 1, ease: 'none', duration: 1 }, 0)
+    tl.fromTo('[data-frame]',
+      { clipPath: 'inset(16% 36% 10% 36% round 999px 999px 0px 0px)' },
+      { clipPath: 'inset(0% 0% 0% 0% round 0px 0px 0px 0px)', ease: 'none', duration: 1 })
+      .fromTo('[data-frame] img', { scale: 1.4 }, { scale: 1, ease: 'none', duration: 1 }, 0)
       .fromTo('[data-shade]', { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.75)
       .fromTo('[data-quote]', { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.3 }, 0.8);
   }, { scope: ref });
@@ -28,7 +30,7 @@ export default function QuoteReveal() {
   if (!photo) return null;
 
   return (
-    <section ref={ref} className={styles.section} aria-label="Zitat">
+    <section ref={ref} className={styles.section} aria-label="Zitat" data-ambient={toneFor(photo)}>
       <div className={styles.sticky}>
         <div className={styles.frame} data-frame>
           <Photo photo={photo} size="lg" fill />

@@ -29,6 +29,7 @@ export default function Header() {
             {s.title}
           </Link>
         ))}
+        <Link href="/farben/" aria-current={isActive('/farben') ? 'page' : undefined}>Farben</Link>
         <Link href="/about/" aria-current={isActive('/about') ? 'page' : undefined}>About</Link>
         <a href={`mailto:${site.email}`}>Kontakt</a>
       </nav>

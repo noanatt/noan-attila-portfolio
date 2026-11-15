@@ -6,7 +6,7 @@
  */
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { featured } from '@/content/photos';
+import { allPhotos, featured, spread } from '@/content/photos';
 import { site } from '@/content/site';
 import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from '@/lib/gsap';
 import { useLightbox } from '../Lightbox';
@@ -21,8 +21,13 @@ export default function Hero() {
   const [active, setActive] = useState(true);
   const [ready, setReady] = useState(false);
   const handleReady = useCallback(() => setReady(true), []);
+  // Auf dem Handy weniger Fotos (schnelleres Laden, ruhigeres Bild)
+  const [photos, setPhotos] = useState(featured.hero);
   const { open } = useLightbox();
-  const photos = featured.hero;
+
+  useEffect(() => {
+    if (window.innerWidth < 700) setPhotos(spread(featured.hero, 24));
+  }, []);
 
   // 3D-Rendering pausieren, wenn der Hero nicht sichtbar ist (spart Akku)
   useEffect(() => {
@@ -59,24 +64,18 @@ export default function Hero() {
       },
     });
 
+    const st = (start: string, end: string) => ({ trigger: section.current, start, end, scrub: true });
     // Name tritt beim ersten Scrollen zurück
-    gsap.to('[data-title]', {
-      yPercent: -30,
-      opacity: 0,
-      ease: 'none',
-      scrollTrigger: { trigger: section.current, start: 'top top', end: '18% top', scrub: true },
-    });
-    gsap.to('[data-fade]', {
-      opacity: 0,
-      ease: 'none',
-      scrollTrigger: { trigger: section.current, start: '2% top', end: '10% top', scrub: true },
-    });
+    gsap.to('[data-title]', { yPercent: -30, opacity: 0, ease: 'none', scrollTrigger: st('top top', '14% top') });
+    gsap.to('[data-fade]', { opacity: 0, ease: 'none', scrollTrigger: st('2% top', '8% top') });
+    // Bildunterschrift zur Farbwand am Ende
+    gsap.fromTo('[data-wall]', { opacity: 0, y: 24 }, { opacity: 1, y: 0, ease: 'none', scrollTrigger: st('86% bottom', '95% bottom') });
   }, { scope: section });
 
   const name = site.name.split(' ');
 
   return (
-    <section ref={section} className={styles.hero} aria-label="Einstieg">
+    <section ref={section} className={styles.hero} aria-label="Einstieg" data-ambient="#000000">
       <div className={styles.sticky}>
         <div className={`${styles.canvas} ${ready ? styles.ready : ''}`}>
           <HeroScene
@@ -101,6 +100,9 @@ export default function Hero() {
           </h1>
           <p className={styles.kicker} data-fade>{site.heroKicker}</p>
           <span className={styles.hint} data-fade>{site.heroHint}</span>
+          <p className={styles.wall} data-wall>
+            {photos.length} von {allPhotos.length} Fotos, {site.heroWallCaption}
+          </p>
         </div>
 
         <div className={styles.progress} data-progress aria-hidden="true" />

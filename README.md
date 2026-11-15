@@ -30,15 +30,34 @@ npm run build
    npm run photos
    ```
 
-   Das Skript erzeugt Web-Versionen (900 px und 2200 px) in `public/photos/`,
-   entfernt EXIF-Daten wie GPS-Standorte und schreibt die Bildliste
-   `src/content/photos.generated.json`. Neue Fotos werden ergänzt, bereits
-   verarbeitete übersprungen. Mit `npm run photos -- --force` wird alles neu erzeugt.
-3. Welche Fotos auf der **Startseite** erscheinen (3D-Szene, Galerie, Filmstreifen,
-   Vollbild hinter dem Zitat), legst du in `src/content/photos.ts` unter `featured` fest.
-   Die ID ist der Dateiname in Kleinbuchstaben ohne Endung (`P1045650.jpg` → `p1045650`).
+   Das Skript
+   - erzeugt Web-Versionen (480, 900 und 2200 px) in `public/photos/`,
+   - **hellt zu dunkle Fotos automatisch auf** (Schatten und Mitteltöne werden
+     angehoben, Schwarz bleibt Schwarz; Stärke über `BRIGHTEN` im Skript, einzelne
+     Fotos ausnehmen mit `"noBrighten": ["p1046479"]` bei der Serie in `photos.sources.json`),
+   - berechnet pro Foto eine **Farbpalette** (5 Farben + Schlüsselfarbe),
+   - entfernt EXIF-Daten wie GPS-Standorte,
+   - schreibt die Bildliste `src/content/photos.generated.json`.
 
-Auf den Serienseiten erscheinen automatisch alle Fotos einer Serie.
+   Neue Fotos werden ergänzt, bereits verarbeitete übersprungen.
+   Mit `npm run photos -- --force` wird alles neu erzeugt.
+
+Die Fotos landen automatisch in den Serienseiten, im Farbspektrum, auf der Seite
+`/farben` und in den **Farbkapiteln** der Startseite.
+
+### Farbkapitel
+
+Die Kapitel (Schatten, Blaue Stunde, Signalrot, Natriumlicht) stehen in
+`src/content/site.ts` unter `chapters`: Name, Text und Farbtonbereich in Grad
+auf dem Farbkreis. Jedes Foto landet im Kapitel, dessen Bereich seine
+Schlüsselfarbe trifft. Mit `highlights: ['p1045650', …]` legst du fest, welche
+Fotos ein Kapitel auf der Startseite zeigt (sonst automatisch die farbkräftigsten).
+
+### Auswahl in `src/content/photos.ts`
+
+Unter `featured`: Fotos in der 3D-Szene (Standard: 36 über das ganze Spektrum
+verteilt), Foto hinter dem Zitat, Titelbilder der Serien, Vorschaubild für Social Media.
+Die ID ist der Dateiname in Kleinbuchstaben ohne Endung (`P1045650.jpg` → `p1045650`).
 
 ## Texte ändern
 
@@ -53,15 +72,19 @@ stehen in `src/content/site.ts`. Impressum und Datenschutz liegen in
 | Bereich | Datei |
 | --- | --- |
 | Reihenfolge der Abschnitte auf der Startseite | `src/app/page.tsx` |
-| 3D-Szene (Kamerafahrt durch die Fotos) | `src/components/home/HeroScene.tsx` |
+| 3D-Szene (Spirale, Farbwand am Ende) | `src/components/home/HeroScene.tsx` |
 | Hero mit Namen | `src/components/home/Hero.tsx` |
 | Text, der sich beim Scrollen aufhellt | `src/components/home/Statement.tsx` |
-| Parallax-Galerie (New York) | `src/components/home/ParallaxGallery.tsx` |
-| Horizontaler Filmstreifen (Roadtrip) | `src/components/home/FilmStrip.tsx` |
+| Farbspektrum aller Fotos | `src/components/home/Spectrum.tsx` |
+| Farbkapitel mit Formen (Bogen, Kreis …) | `src/components/home/ColorChapter.tsx` |
+| Serien als Bogenfenster | `src/components/home/SeriesCovers.tsx` |
 | Vollbild-Reveal mit Zitat | `src/components/home/QuoteReveal.tsx` |
-| Serienseiten | `src/app/serien/[slug]/page.tsx`, `src/components/SeriesGallery.tsx` |
-| Lightbox | `src/components/Lightbox.tsx` |
-| Farben, Schrift, Abstände | `src/app/globals.css` (Variablen ganz oben) |
+| Hintergrundfarbe, die beim Scrollen wechselt | `src/components/Ambient.tsx` |
+| Serienseiten (Sortierung nach Farbe) | `src/app/serien/[slug]/page.tsx`, `src/components/SeriesGallery.tsx` |
+| Seite „Farben“ | `src/app/farben/page.tsx` |
+| Lightbox (Hintergrund in Fotofarbe, Palette) | `src/components/Lightbox.tsx` |
+| Farbberechnung (Hintergrundtöne) | `src/lib/color.ts` |
+| Farben, Schrift, Abstände, Formen | `src/app/globals.css` (Variablen ganz oben) |
 
 Wer im Betriebssystem „Bewegung reduzieren“ eingestellt hat, bekommt eine ruhige
 Version ohne Kamerafahrt, Parallax und weiches Scrollen.

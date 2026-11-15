@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'Datenschutz', robots: { index: false
 
 export default function Datenschutz() {
   return (
-    <article className={styles.page}>
+    <article className={styles.page} data-ambient="#e9e7e2" data-ambient-fg="#0d0d0d">
       <h1 className={styles.title}>Datenschutz</h1>
       <div className={styles.body}>
         <h2>Verantwortlicher</h2>

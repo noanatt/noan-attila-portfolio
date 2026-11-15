@@ -22,7 +22,7 @@ export default function Statement() {
   }, { scope: ref });
 
   return (
-    <section ref={ref} className={styles.statement}>
+    <section ref={ref} className={styles.statement} data-ambient="#000000">
       <p className={styles.text}>
         {site.statement.split(' ').map((w, i) => (
           <span key={i} data-word>{w} </span>

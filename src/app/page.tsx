@@ -2,41 +2,25 @@
  * Startseite – Reihenfolge der Abschnitte von oben nach unten.
  * Abschnitte einfach verschieben oder auskommentieren.
  */
-import { featured, getSeries } from '@/content/photos';
-import { site } from '@/content/site';
+import { chapters } from '@/content/photos';
 import Hero from '@/components/home/Hero';
 import Statement from '@/components/home/Statement';
-import ParallaxGallery from '@/components/home/ParallaxGallery';
-import FilmStrip from '@/components/home/FilmStrip';
+import Spectrum from '@/components/home/Spectrum';
+import ColorChapter from '@/components/home/ColorChapter';
+import SeriesCovers from '@/components/home/SeriesCovers';
 import QuoteReveal from '@/components/home/QuoteReveal';
 import Contact from '@/components/home/Contact';
 
 export default function Home() {
-  const ny = getSeries('new-york');
-  const usa = getSeries('usa-roadtrip');
-
   return (
     <>
       <Hero />
       <Statement />
-      {ny && (
-        <ParallaxGallery
-          title={ny.title}
-          intro={site.seriesIntro[ny.slug]}
-          photos={featured.newYork}
-          total={ny.photos.length}
-          href={`/serien/${ny.slug}/`}
-        />
-      )}
-      {usa && (
-        <FilmStrip
-          title={usa.title}
-          intro={site.seriesIntro[usa.slug]}
-          photos={featured.roadtrip}
-          total={usa.photos.length}
-          href={`/serien/${usa.slug}/`}
-        />
-      )}
+      <Spectrum />
+      {chapters.map((chapter, i) => (
+        <ColorChapter key={chapter.slug} chapter={chapter} mirrored={i % 2 === 1} />
+      ))}
+      <SeriesCovers />
       <QuoteReveal />
       <Contact />
     </>

@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: 'Impressum', robots: { index: false }
 /* WICHTIG: Platzhalter in eckigen Klammern durch deine echten Angaben ersetzen. */
 export default function Impressum() {
   return (
-    <article className={styles.page}>
+    <article className={styles.page} data-ambient="#e9e7e2" data-ambient-fg="#0d0d0d">
       <h1 className={styles.title}>Impressum</h1>
       <div className={styles.body}>
         <h2>Angaben gemäß § 5 DDG</h2>
