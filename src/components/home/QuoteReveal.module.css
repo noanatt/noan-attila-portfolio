@@ -15,7 +15,7 @@
 .frame :global(.photo) { height: 100%; }
 .zoom { position: absolute; inset: 0; isolation: isolate; will-change: transform; }
 
-/* WebGPU-Wellen über dem Foto; das normale Foto bleibt darunter als Rückfall */
+/* Wasserwellen über dem Foto (WebGL); das normale Foto bleibt darunter als Rückfall */
 .ripple {
   position: absolute;
   z-index: 1;

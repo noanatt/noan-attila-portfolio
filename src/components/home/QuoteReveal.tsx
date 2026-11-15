@@ -1,8 +1,8 @@
 'use client';
 /**
  * Ein Foto öffnet sich beim Scrollen aus einem schmalen Bogenfenster zum
- * Vollbild, danach erscheint das Zitat darüber. Mit WebGPU wirft das Foto
- * unter der Maus Wasserwellen (Shaders-Bibliothek, nachgeladen).
+ * Vollbild, danach erscheint das Zitat darüber. Mit der Maus wirft das Foto
+ * Wasserwellen (eigener WebGL-Shader, nachgeladen).
  */
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { featured, photoSrc, toneFor } from '@/content/photos';
@@ -19,12 +19,12 @@ export default function QuoteReveal() {
   const [shaderOn, setShaderOn] = useState(false);
   const [shaderReady, setShaderReady] = useState(false);
 
-  // Nur mit WebGPU, nur mit Maus und ohne „Bewegung reduzieren“
+  // Nur mit Maus und ohne „Bewegung reduzieren“
   useEffect(() => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
     const fine = window.matchMedia('(pointer: fine)');
     const sync = () => {
-      const on = 'gpu' in navigator && !reduce.matches && fine.matches;
+      const on = !reduce.matches && fine.matches;
       setShaderOn(on);
       if (!on) setShaderReady(false);
     };
