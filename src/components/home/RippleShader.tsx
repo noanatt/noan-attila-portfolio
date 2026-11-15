@@ -19,7 +19,7 @@ export default function RippleShader({ imageUrl, ready, onReady, className = '' 
     >
       <ImageTexture url={imageUrl} objectFit="cover" />
       {/* intensity 0–20, decay 0–20 (kleiner = schwingt länger), radius 0.1–1, chromaticSplit 0–3 */}
-      <CursorRipples intensity={18} decay={4} radius={0.85} chromaticSplit={2.2} />
+      <CursorRipples intensity={10} decay={6} radius={0.65} chromaticSplit={1.2} />
     </Shader>
   );
 }

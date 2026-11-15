@@ -23,6 +23,7 @@ const BLOOM_THRESHOLD = 0.72;// ab welcher Helligkeit etwas glüht
 const STREAK = 0.09;         // Länge der Warp-Streifen bei voller Geschwindigkeit
 const SPLIT = 0.012;         // Farbtrennung am Rand bei voller Geschwindigkeit
 const GRAIN = 0.045;         // Filmkorn
+const MAX_DPR = 1.25;        // höchste Pixeldichte der Nachbearbeitung (spart Rechenzeit)
 
 const WarpShader = {
   uniforms: {
@@ -56,8 +57,11 @@ const WarpShader = {
       vec3 col = vec3(0.0);
       float total = 0.0;
       float len = uStreak * uWarp * smoothstep(0.05, 0.75, dist);
+      // Ohne Warp reicht eine Probe pro Pixel, bei vollem Warp sind es 12
+      float samples = 1.0 + floor(11.0 * smoothstep(0.0, 0.35, uWarp));
       for (int i = 0; i < 12; i++) {
-        float t = float(i) / 11.0;
+        if (float(i) >= samples) break;
+        float t = samples > 1.0 ? float(i) / (samples - 1.0) : 0.0;
         float w = 1.0 - t * 0.7;
         vec2 uv = vUv - dir * len * t;
         // Farbtrennung: Rot nach außen, Blau nach innen
@@ -105,7 +109,7 @@ export default function HeroEffects({ warp }: Props) {
   }, [gl, scene, camera]);
 
   useEffect(() => {
-    composer.setPixelRatio(gl.getPixelRatio());
+    composer.setPixelRatio(Math.min(gl.getPixelRatio(), MAX_DPR));
     composer.setSize(size.width, size.height);
     warpPass.uniforms.uAspect.value = size.width / size.height;
   }, [composer, warpPass, gl, size]);
