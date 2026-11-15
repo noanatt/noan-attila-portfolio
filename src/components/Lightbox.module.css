@@ -2,15 +2,25 @@
   position: fixed;
   inset: 0;
   z-index: 100;
-  /* Hintergrund in einem tiefen Ton der Fotofarbe, wechselt weich beim Blättern */
-  background: var(--tone, #000);
-  transition: background-color 0.8s var(--ease-out);
+  isolation: isolate;
   color: var(--light);
   --fg: var(--light);
   display: grid;
   grid-template-rows: 1fr auto;
-  animation: fade 0.35s var(--ease-out);
 }
+/* Hintergrund in einem tiefen Ton der Fotofarbe, wechselt weich beim Blättern */
+.overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--tone, #000);
+  transition: background-color 0.8s var(--ease-out), opacity 0.6s var(--ease-out);
+  animation: fade 0.6s var(--ease-out);
+}
+.bar { animation: fade 0.5s 0.35s var(--ease-out) both; transition: opacity 0.3s; }
+.closing::before { opacity: 0; }
+.closing .bar { opacity: 0; }
 .info { display: flex; align-items: center; gap: 18px; }
 
 .figure {
@@ -19,19 +29,19 @@
   justify-content: center;
   padding: clamp(16px, 4vw, 56px) var(--gutter) 0;
   min-height: 0;
+  container-type: size;
 }
 
+/* Größe vorab berechnet (passt ins Feld), damit die Verwandlung schon vor dem Laden stimmt */
 .img {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
+  width: min(100cqw, 100cqh * var(--ratio));
   height: auto;
-  object-fit: contain;
-  opacity: 0.25;
-  transform: scale(0.985);
-  transition: opacity 0.5s var(--ease-out), transform 0.7s var(--ease-out);
+  aspect-ratio: var(--ratio);
+  background-size: cover;
+  background-position: center;
+  will-change: transform, clip-path;
 }
-.loaded { opacity: 1; transform: none; }
+.loaded { background-image: none !important; }
 
 .bar {
   display: flex;
