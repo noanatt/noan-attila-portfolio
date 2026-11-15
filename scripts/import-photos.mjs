@@ -7,10 +7,16 @@
  *   npm run photos            → nur neue Fotos verarbeiten
  *   npm run photos -- --force → alles neu erzeugen
  *
- * Pro Foto entstehen drei Dateien in public/photos/<serie>/:
- *   <name>-xs.jpg  (max. 480 px)   → 3D-Szene, Farbspektrum
- *   <name>-sm.jpg  (max. 900 px)   → Galerien
- *   <name>-lg.jpg  (max. 2200 px)  → Lightbox / Vollbild
+ * Pro Foto entstehen vier Dateien in public/photos/<serie>/:
+ *   <name>-xs.webp  (max. 480 px)   → 3D-Szene, Farbspektrum (WebP: schnell zu dekodieren)
+ *   <name>-sm.avif  (max. 900 px)   → Galerien
+ *   <name>-lg.avif  (max. 2200 px)  → Lightbox / Vollbild
+ *   <name>-og.jpg   (max. 1200 px)  → Vorschaubild beim Teilen (WhatsApp, Instagram …
+ *                                     zeigen WebP nicht überall an)
+ * AVIF ist bei gleicher Qualität etwa halb so groß wie JPG (gemessen: Ø 138 statt 279 KB).
+ *
+ * Ändert sich nur das Dateiformat (Dateien fehlen, Foto ist aber bekannt),
+ * werden nur die Dateien neu erzeugt – Farben und Reihenfolge bleiben gleich.
  *
  * Zu dunkle Fotos werden automatisch aufgehellt (siehe BRIGHTEN unten),
  * danach wird pro Foto eine Farbpalette berechnet.
@@ -26,7 +32,7 @@ const SOURCES = path.join(ROOT, 'photos.sources.json');
 const OUT_DIR = path.join(ROOT, 'public', 'photos');
 const MANIFEST = path.join(ROOT, 'src', 'content', 'photos.generated.json');
 
-const SIZES = { xs: 480, sm: 900, lg: 2200 };
+const SIZES = { xs: 480, sm: 900, lg: 2200, og: 1200 };
 
 /**
  * Automatisches Aufhellen zu dunkler Fotos.
@@ -38,7 +44,8 @@ const SIZES = { xs: 480, sm: 900, lg: 2200 };
  *   "noBrighten": ["p1046479"]
  */
 const BRIGHTEN = { threshold: 0.2, target: 0.26, maxLift: 0.55 };
-const QUALITY = 80;
+const QUALITY = { xs: 75, sm: 55, lg: 55, og: 80 };
+const FORMAT = { xs: 'webp', sm: 'avif', lg: 'avif', og: 'jpg' };
 const CONCURRENCY = 4;
 const FORCE = process.argv.includes('--force');
 const IMAGE_EXT = /\.(jpe?g|png|tiff?|webp|heic)$/i;
@@ -138,15 +145,13 @@ for (const series of config.series) {
   const queue = files.map((file, i) => async () => {
     const id = path.basename(file).replace(/\.[^.]+$/, '').toLowerCase();
     const key = `${series.slug}/${id}`;
-    const smPath = path.join(outDir, `${id}-sm.jpg`);
-    const lgPath = path.join(outDir, `${id}-lg.jpg`);
+    const out = (size) => path.join(outDir, `${id}-${size}.${FORMAT[size]}`);
+    const smPath = out('sm');
+    const has = (p) => fs.access(p).then(() => true, () => false);
+    const complete = (await Promise.all(Object.keys(SIZES).map((s) => has(out(s))))).every(Boolean);
 
-    const exists = await fs.access(lgPath).then(() => true, () => false);
-    if (!FORCE && exists && known.has(key)) {
-      photos[i] = known.get(key);
-      // Ältere Einträge ohne Farbanalyse nachträglich ergänzen
-      if (!photos[i].palette) photos[i] = { ...photos[i], ...(await analyzeColors(smPath)) };
-    } else {
+    // Dateien eines Fotos erzeugen (Drehung, ggf. Aufhellen, vier Größen)
+    const render = async () => {
       const input = await fs.readFile(file); // lädt iCloud-Dateien bei Bedarf herunter
 
       // Helligkeit messen und ggf. Aufhell-Kurve bestimmen
@@ -162,13 +167,28 @@ for (const series of config.series) {
       const base = sharp(input).rotate(); // EXIF-Drehung anwenden, Metadaten verwerfen
       if (lift < 1) base.gamma(1, 1 / lift).modulate({ saturation: 1.08 });
 
-      const write = (size, target) => base.clone()
-        .resize(SIZES[size], SIZES[size], { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: QUALITY, mozjpeg: true, progressive: true })
-        .toFile(target);
-      const lg = await write('lg', lgPath);
-      await write('sm', smPath);
-      await write('xs', path.join(outDir, `${id}-xs.jpg`));
+      const write = (size) => {
+        const img = base.clone().resize(SIZES[size], SIZES[size], { fit: 'inside', withoutEnlargement: true });
+        const enc = FORMAT[size] === 'jpg' ? img.jpeg({ quality: QUALITY[size], mozjpeg: true, progressive: true })
+          : FORMAT[size] === 'avif' ? img.avif({ quality: QUALITY[size], effort: 4 })
+          : img.webp({ quality: QUALITY[size], effort: 5, smartSubsample: true });
+        return enc.toFile(out(size));
+      };
+      const lg = await write('lg');
+      await Promise.all([write('sm'), write('xs'), write('og')]);
+      return { lg, lift };
+    };
+
+    if (!FORCE && known.has(key) && complete) {
+      photos[i] = known.get(key);
+      // Ältere Einträge ohne Farbanalyse nachträglich ergänzen
+      if (!photos[i].palette) photos[i] = { ...photos[i], ...(await analyzeColors(smPath)) };
+    } else if (!FORCE && known.has(key) && known.get(key).palette) {
+      // Nur das Dateiformat fehlt: Dateien neu, Farbdaten unverändert übernehmen
+      await render();
+      photos[i] = known.get(key);
+    } else {
+      const { lg, lift } = await render();
 
       const { dominant } = await sharp(smPath).stats();
       const hex = '#' + [dominant.r, dominant.g, dominant.b].map((v) => v.toString(16).padStart(2, '0')).join('');

@@ -52,7 +52,8 @@ export function getSeries(slug: string): Series | undefined {
 
 /** URL eines Fotos. 'xs' = 480 px, 'sm' = 900 px, 'lg' = 2200 px */
 export function photoSrc(photo: Photo, size: 'xs' | 'sm' | 'lg' = 'sm'): string {
-  return asset(`/photos/${photo.series}/${photo.id}-${size}.jpg`);
+  // xs als WebP (schnell zu dekodieren, 3D-Szene), sm/lg als AVIF (halb so groß wie JPG)
+  return asset(`/photos/${photo.series}/${photo.id}-${size}.${size === 'xs' ? 'webp' : 'avif'}`);
 }
 
 /** Sucht Fotos per ID (über alle Serien). Unbekannte IDs werden ignoriert. */

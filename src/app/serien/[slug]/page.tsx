@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'website',
       siteName: site.name,
       url: `/serien/${slug}/`,
-      images: cover ? [`photos/${cover.series}/${cover.id}-lg.jpg`] : undefined,
+      images: cover ? [`photos/${cover.series}/${cover.id}-og.jpg`] : undefined,
     },
   };
 }

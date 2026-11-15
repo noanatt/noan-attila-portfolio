@@ -14,7 +14,7 @@ import './globals.css';
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist', display: 'swap' });
 
 const shareImage = featured.share
-  ? `photos/${featured.share.series}/${featured.share.id}-lg.jpg`
+  ? `photos/${featured.share.series}/${featured.share.id}-og.jpg`
   : undefined;
 
 export const metadata: Metadata = {
