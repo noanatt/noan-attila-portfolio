@@ -12,13 +12,13 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 /* Stellschrauben ---------------------------------------------------- */
-const MAX_DROPS = 32;     // gleichzeitige Wellenzentren
-const LIFETIME = 1.6;     // Sekunden, bis eine Welle verschwunden ist
-const STRENGTH = 0.022;   // Verschiebung der Bildpunkte
+const MAX_DROPS = 48;     // gleichzeitige Wellenzentren
+const LIFETIME = 2.2;     // Sekunden, bis eine Welle verschwunden ist
+const STRENGTH = 0.05;    // Verschiebung der Bildpunkte
 const SPEED = 0.38;       // Ausbreitung (Bildhöhen pro Sekunde)
 const WAVELENGTH = 0.045; // Abstand der Ringe
-const SPLIT = 0.35;       // Farbtrennung an den Wellenkanten (0 = keine)
-const SPACING = 0.025;    // Mindestabstand zwischen zwei Wellenzentren
+const SPLIT = 0.6;        // Farbtrennung an den Wellenkanten (0 = keine)
+const SPACING = 0.018;    // Mindestabstand zwischen zwei Wellenzentren
 
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -47,7 +47,7 @@ const fragmentShader = /* glsl */ `
       float dist = length(delta);
       float front = age * ${SPEED.toFixed(3)};
       // Ringpaket um die Wellenfront, klingt mit der Zeit ab
-      float envelope = exp(-pow((dist - front) / 0.06, 2.0)) * exp(-age * 2.6);
+      float envelope = exp(-pow((dist - front) / 0.09, 2.0)) * exp(-age * 1.6);
       float wave = sin((dist - front) / ${WAVELENGTH.toFixed(3)} * 6.2831) * envelope * d.w;
       offset += normalize(delta + 1e-5) * wave / vec2(uAspect, 1.0);
       edge += abs(wave);
@@ -59,7 +59,7 @@ const fragmentShader = /* glsl */ `
     col.g = texture2D(uImage, cover(uv)).g;
     col.b = texture2D(uImage, cover(uv - split)).b;
     // ganz leichter Glanz auf den Wellenkämmen
-    col += min(edge, 1.0) * 0.035;
+    col += min(edge, 1.0) * 0.06;
     gl_FragColor = vec4(col, 1.0);
   }
 `;
@@ -147,7 +147,7 @@ export default function RippleShader({ imageUrl, ready, onReady, className = '' 
       last = { x, y };
       // schnelle Bewegung → kräftigere Welle
       const t = now();
-      drops[next].set(x, y, t, Math.min(1, 0.35 + moved * 6));
+      drops[next].set(x, y, t, Math.min(1, 0.55 + moved * 8));
       next = (next + 1) % MAX_DROPS;
       lastDrop = t;
       wake();
