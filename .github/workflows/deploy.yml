@@ -25,10 +25,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build
+      # Eigene Domain: In GitHub unter Settings → Secrets and variables → Actions →
+      # Variables die Variable CUSTOM_DOMAIN (z. B. noanattila.com) anlegen.
+      # Ohne die Variable läuft die Seite unter <name>.github.io/<repo>/.
+      - name: Build
         env:
-          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
-          NEXT_PUBLIC_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          if [ -n "$CUSTOM_DOMAIN" ]; then
+            export NEXT_PUBLIC_BASE_PATH=""
+            export NEXT_PUBLIC_SITE_URL="https://$CUSTOM_DOMAIN/"
+          else
+            export NEXT_PUBLIC_BASE_PATH="/$REPO"
+            export NEXT_PUBLIC_SITE_URL="https://$OWNER.github.io/$REPO/"
+          fi
+          npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out
