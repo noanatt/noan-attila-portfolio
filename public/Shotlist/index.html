@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0b0b0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shotlist">
+<title>Shotlist</title>
+<!--
+  Private Dreh-Liste. Nicht verlinkt, nicht in der Sitemap.
+  Daten: ./daten/index.json listet die Shotlists, jede Liste ist eine eigene JSON-Datei,
+  wahlweise mit Passwort verschlüsselt (AES-GCM, Schlüssel per PBKDF2). Erzeugt von
+  scripts/shotlist-publish.mjs aus der shotlist.json des Storyboard-Skills.
+  Abgehakte Shots werden nur auf diesem Gerät gespeichert (localStorage).
+-->
+<style>
+  :root {
+    --bg: #0b0b0c; --card: #161618; --card2: #1e1e21; --line: #2a2a2e;
+    --text: #f2f2f3; --mute: #9a9aa2; --accent: #ffd166;
+    --muss: #ff5d5d; --soll: #ffc94d; --kann: #8a8a93; --ok: #4cd38a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 24px);
+    min-height: 100vh;
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+  h1 { font-size: 22px; margin: 18px 0 2px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); margin: 26px 0 8px; display: flex; justify-content: space-between; gap: 8px; }
+  h2 small { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .meta { color: var(--mute); font-size: 14px; margin: 0 0 4px; }
+  button, input { font: inherit; color: inherit; }
+  .btn { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; }
+  .hidden { display: none !important; }
+
+  /* Sperrbildschirm */
+  #lock { max-width: 360px; margin: 22vh auto 0; padding: 0 16px; text-align: center; }
+  #lock input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); margin: 16px 0 10px; font-size: 18px; }
+  #lock .btn { width: 100%; padding: 14px; }
+  .err { color: var(--muss); min-height: 1.4em; font-size: 14px; }
+
+  /* Übersicht */
+  .liste { display: block; text-decoration: none; color: inherit; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin: 10px 0; }
+  .liste b { display: block; font-size: 17px; }
+
+  /* Kopfleiste */
+  .bar { position: sticky; top: 0; z-index: 5; background: rgba(11,11,12,.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: calc(env(safe-area-inset-top) + 10px) 16px 10px; margin: 0 -16px; border-bottom: 1px solid var(--line); }
+  .bar-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .progress { height: 6px; background: var(--card2); border-radius: 3px; overflow: hidden; margin: 8px 0 6px; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .25s; }
+  .stats { font-size: 13px; color: var(--mute); display: flex; justify-content: space-between; }
+  .filters { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; }
+  .chip { flex: none; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--text); color: #111; border-color: var(--text); }
+  .back { background: none; border: 0; color: var(--accent); padding: 4px 0; cursor: pointer; font-size: 15px; }
+
+  /* Shots */
+  .shot { display: flex; gap: 12px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--kann); border-radius: 12px; padding: 12px 12px 12px 10px; margin: 8px 0; cursor: pointer; user-select: none; }
+  .shot.muss { border-left-color: var(--muss); }
+  .shot.soll { border-left-color: var(--soll); }
+  .box { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 2px solid var(--mute); display: grid; place-items: center; margin-top: 1px; }
+  .shot.done .box { background: var(--ok); border-color: var(--ok); }
+  .shot.done .box::after { content: ""; width: 8px; height: 14px; border: solid #0b0b0c; border-width: 0 3px 3px 0; transform: rotate(45deg) translate(-1px, -2px); }
+  .shot.done .was, .shot.done .wie { opacity: .45; }
+  .shot.done .was { text-decoration: line-through; }
+  .body { flex: 1; min-width: 0; }
+  .kopf { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--mute); margin-bottom: 2px; }
+  .id { font-weight: 700; color: var(--text); font-size: 13px; }
+  .tag { border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; }
+  .tag.warn { border-color: var(--muss); color: var(--muss); }
+  .was { font-size: 16px; font-weight: 500; }
+  .wie { font-size: 14px; color: var(--mute); margin-top: 2px; }
+  .hinweis { font-size: 14px; color: var(--accent); margin-top: 6px; }
+
+  /* Tipps */
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 10px 0; }
+  summary { font-weight: 600; cursor: pointer; }
+  details ul { padding-left: 18px; margin: 8px 0 0; }
+  details li { margin: 6px 0; font-size: 15px; }
+  .foot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
+  .foot .btn { font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div id="lock" class="hidden">
+  <h1>Shotlist</h1>
+  <p class="meta">Passwort eingeben</p>
+  <form id="lockForm" autocomplete="on">
+    <input type="text" name="username" value="shotlist" autocomplete="username" class="hidden" aria-hidden="true">
+    <input id="pw" type="password" autocomplete="current-password" placeholder="Passwort" required>
+    <button class="btn primary" type="submit">Öffnen</button>
+  </form>
+  <p id="lockErr" class="err"></p>
+</div>
+
+<main id="app" class="hidden"></main>
+
+<script>
+(() => {
+  'use strict';
+  const DATA = './daten/';
+  const PW_KEY = 'shotlist.passwort';
+  const PRIO = { muss: 0, soll: 1, kann: 2 };
+  const EINST = { totale: 'Totale', halbtotale: 'Halbtotale', halbnah: 'Halbnah', nah: 'Nah', detail: 'Detail', pov: 'POV' };
+
+  const $ = (s, el = document) => el.querySelector(s);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+    del(k) { try { localStorage.removeItem(k); } catch {} },
+  };
+
+  let listen = [];          // [{ datei, daten }]
+  let passwort = store.get(PW_KEY);
+
+  // ---------- Entschlüsseln ----------
+  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  async function entschluessle(env, pw) {
+    const basis = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: b64(env.salt), iterations: env.iter, hash: 'SHA-256' },
+      basis, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    const klar = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(env.iv) }, key, b64(env.daten));
+    return JSON.parse(new TextDecoder().decode(klar));
+  }
+
+  async function holeJSON(datei) {
+    const r = await fetch(DATA + datei, { cache: 'no-cache' });
+    if (!r.ok) throw new Error(datei + ': ' + r.status);
+    return r.json();
+  }
+
+  async function laden() {
+    const index = await holeJSON('index.json');
+    const rohe = await Promise.all(index.listen.map(async (e) => ({ datei: e.datei, roh: await holeJSON(e.datei) })));
+    const brauchtPw = rohe.some((x) => x.roh.verschluesselt);
+    if (brauchtPw && !passwort) return zeigeSperre();
+    try {
+      listen = await Promise.all(rohe.map(async (x) => ({
+        datei: x.datei,
+        daten: x.roh.verschluesselt ? await entschluessle(x.roh, passwort) : x.roh,
+      })));
+    } catch {
+      store.del(PW_KEY); passwort = null;
+      return zeigeSperre('Passwort falsch.');
+    }
+    $('#lock').classList.add('hidden');
+    $('#app').classList.remove('hidden');
+    route();
+  }
+
+  function zeigeSperre(fehler = '') {
+    $('#app').classList.add('hidden');
+    $('#lock').classList.remove('hidden');
+    $('#lockErr').textContent = fehler;
+    $('#pw').value = '';
+    setTimeout(() => $('#pw').focus(), 50);
+  }
+  $('#lockForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    passwort = $('#pw').value;
+    store.set(PW_KEY, passwort);
+    laden();
+  });
+
+  // ---------- Ansichten ----------
+  const id = (d) => d.daten.projekt;
+  function route() {
+    const p = decodeURIComponent(location.hash.slice(1));
+    const l = listen.find((x) => id(x) === p) || (listen.length === 1 ? listen[0] : null);
+    l ? zeigeListe(l.daten) : zeigeUebersicht();
+  }
+  window.addEventListener('hashchange', () => listen.length && route());
+
+  function fortschritt(d) {
+    const h = haken(d.projekt);
+    const shots = sichtbareShots(d);
+    return { fertig: shots.filter((s) => h[s.id]).length, gesamt: shots.length };
+  }
+
+  function zeigeUebersicht() {
+    document.title = 'Shotlist';
+    $('#app').innerHTML = '<h1>Shotlists</h1>' + (listen.length ? '' : '<p class="meta">Noch keine Shotlist veröffentlicht.</p>') +
+      listen.map(({ daten: d }) => {
+        const f = fortschritt(d);
+        return `<a class="liste" href="#${encodeURIComponent(d.projekt)}"><b>${esc(d.titel || d.projekt)}</b>
+          <span class="meta">${esc([d.datum, d.ort].filter(Boolean).join(' · '))}</span><br>
+          <span class="meta">${f.fertig} von ${f.gesamt} erledigt</span></a>`;
+      }).join('') + fussleiste(false);
+    bindeFuss();
+  }
+
+  const haken = (p) => { try { return JSON.parse(store.get('shotlist.haken.' + p) || '{}'); } catch { return {}; } };
+  const speichereHaken = (p, h) => store.set('shotlist.haken.' + p, JSON.stringify(h));
+  const sichtbareShots = (d) => d.shots.filter((s) => s.status !== 'verworfen');
+
+  let filter = store.get('shotlist.filter') || 'alle';
+
+  function wie(s) {
+    const w = [EINST[s.einstellung] || s.einstellung, s.bewegung];
+    if (s.fps >= 90) w.push(`Zeitlupe ${s.fps} fps`);
+    else if (s.fps && ![24, 25, 30].includes(s.fps)) w.push(`${s.fps} fps`);
+    if (s.dauer_s) w.push(`≥ ${s.dauer_s} s`);
+    return w.filter(Boolean).join(' · ');
+  }
+
+  function shotHTML(s, h) {
+    const medium = { foto: '📷 Foto', beides: '🎬 + 📷' }[s.medium] || '🎬 Video';
+    const tags = [`<span class="tag">${medium}</span>`];
+    if (s.ton_wichtig) tags.push('<span class="tag">🎙 Ton</span>');
+    if (s.einmalig) tags.push('<span class="tag warn">⚠️ einmalig</span>');
+    return `<div class="shot ${esc(s.prioritaet)}${h[s.id] ? ' done' : ''}" data-id="${esc(s.id)}" role="checkbox" aria-checked="${!!h[s.id]}" tabindex="0">
+      <span class="box"></span>
+      <div class="body">
+        <div class="kopf"><span class="id">${esc(s.id)}</span><span>${esc(s.prioritaet)}</span>${tags.join('')}</div>
+        <div class="was">${esc(s.was)}</div>
+        <div class="wie">${esc(wie(s))}</div>
+        ${s.hinweis ? `<div class="hinweis">↳ ${esc(s.hinweis)}</div>` : ''}
+      </div></div>`;
+  }
+
+  // Minimales Markdown für die Dreh-Tipps: ## Überschrift, - Liste, **fett**
+  function tippsHTML(md) {
+    if (!md) return '';
+    const inl = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/_(.+?)_/g, '<i>$1</i>');
+    const teile = md.split(/^## /m).filter((t) => t.trim());
+    return teile.map((t) => {
+      const [kopf, ...rest] = t.split('\n');
+      const punkte = rest.filter((z) => /^\s*-\s+/.test(z)).map((z) => `<li>${inl(z.replace(/^\s*-\s+/, ''))}</li>`).join('');
+      return `<details><summary>${inl(kopf)}</summary><ul>${punkte}</ul></details>`;
+    }).join('');
+  }
+
+  function zeigeListe(d) {
+    document.title = (d.titel || d.projekt) + ' · Shotlist';
+    const h = haken(d.projekt);
+    const shots = sichtbareShots(d);
+    const passt = (s) => filter === 'alle' || (filter === 'offen' && !h[s.id]) || (filter === 'muss' && s.prioritaet === 'muss');
+    const muss = shots.filter((s) => s.prioritaet === 'muss');
+    const mussFertig = muss.filter((s) => h[s.id]).length;
+    const fertig = shots.filter((s) => h[s.id]).length;
+
+    const akte = d.akte.map((a) => {
+      const liste = shots.filter((s) => s.akt === a.id && passt(s)).sort((x, y) => (PRIO[x.prioritaet] ?? 9) - (PRIO[y.prioritaet] ?? 9));
+      if (!liste.length) return '';
+      const alle = shots.filter((s) => s.akt === a.id);
+      return `<h2><span>${esc(a.name)}</span><small>${esc(a.uhrzeit || '')} · ${alle.filter((s) => h[s.id]).length}/${alle.length}</small></h2>` +
+        liste.map((s) => shotHTML(s, h)).join('');
+    }).join('');
+
+    const chip = (k, t) => `<button class="chip" data-filter="${k}" aria-pressed="${filter === k}">${t}</button>`;
+    $('#app').innerHTML = `
+      <div class="bar">
+        <div class="bar-top">
+          ${listen.length > 1 ? '<button class="back" id="zurueck">‹ Alle</button>' : ''}
+          <b style="flex:1">${esc(d.titel || d.projekt)}</b>
+        </div>
+        <div class="progress"><i style="width:${shots.length ? (fertig / shots.length) * 100 : 0}%"></i></div>
+        <div class="stats"><span>${fertig} von ${shots.length} erledigt</span><span>🔴 Muss ${mussFertig}/${muss.length}</span></div>
+        <div class="filters">${chip('alle', 'Alle')}${chip('offen', 'Nur offene')}${chip('muss', 'Nur Muss')}</div>
+      </div>
+      <p class="meta" style="margin-top:12px">${esc([d.datum, d.ort].filter(Boolean).join(' · '))}</p>
+      ${d.aufnahme?.standard ? `<p class="meta">${esc(d.aufnahme.standard)}</p>` : ''}
+      ${akte || '<p class="meta" style="margin-top:24px">Alles erledigt 🎉</p>'}
+      ${d._tipps ? '<h2><span>Tipps</span></h2>' + tippsHTML(d._tipps) : ''}
+      ${fussleiste(true)}`;
+
+    $('#app').querySelectorAll('.shot').forEach((el) => {
+      const toggle = () => {
+        const hh = haken(d.projekt);
+        hh[el.dataset.id] ? delete hh[el.dataset.id] : (hh[el.dataset.id] = Date.now());
+        speichereHaken(d.projekt, hh);
+        if (navigator.vibrate) navigator.vibrate(10);
+        const y = window.scrollY; zeigeListe(d); window.scrollTo(0, y);
+      };
+      el.addEventListener('click', toggle);
+      el.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); } });
+    });
+    $('#app').querySelectorAll('.chip').forEach((el) => el.addEventListener('click', () => {
+      filter = el.dataset.filter; store.set('shotlist.filter', filter); zeigeListe(d);
+    }));
+    const z = $('#zurueck'); if (z) z.addEventListener('click', () => { location.hash = ''; });
+    bindeFuss(d);
+  }
+
+  function fussleiste(mitReset) {
+    return `<div class="foot">
+      ${mitReset ? '<button class="btn" id="reset">Haken zurücksetzen</button>' : ''}
+      ${passwort ? '<button class="btn" id="sperren">Sperren</button>' : ''}
+    </div>`;
+  }
+  function bindeFuss(d) {
+    const r = $('#reset');
+    if (r) r.addEventListener('click', () => {
+      if (r.dataset.sicher) { speichereHaken(d.projekt, {}); zeigeListe(d); }
+      else { r.dataset.sicher = '1'; r.textContent = 'Wirklich alle Haken löschen?'; }
+    });
+    const s = $('#sperren');
+    if (s) s.addEventListener('click', () => { store.del(PW_KEY); passwort = null; listen = []; zeigeSperre(); });
+  }
+
+  laden().catch((e) => {
+    $('#app').classList.remove('hidden');
+    $('#app').innerHTML = `<h1>Shotlist</h1><p class="err">Konnte nicht laden: ${esc(e.message)}</p>`;
+  });
+})();
+</script>
+</body>
+</html>
