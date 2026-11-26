@@ -84,6 +84,28 @@
   summary { font-weight: 600; cursor: pointer; }
   details ul { padding-left: 18px; margin: 8px 0 0; }
   details li { margin: 6px 0; font-size: 15px; }
+  .todo { display: flex; gap: 12px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 12px; padding: 12px 12px 12px 10px; margin: 8px 0; cursor: pointer; user-select: none; font-size: 16px; }
+  .todo.done .box { background: var(--ok); border-color: var(--ok); }
+  .todo.done .box::after { content: ""; width: 8px; height: 14px; border: solid #0b0b0c; border-width: 0 3px 3px 0; transform: rotate(45deg) translate(-1px, -2px); }
+  .todo.done span:last-child { opacity: .45; text-decoration: line-through; }
+  .shot .box { cursor: pointer; }
+  .mehr { font-size: 13px; color: var(--accent); margin-top: 6px; }
+  .detail { display: none; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; cursor: default; }
+  .shot.offen .detail { display: block; }
+  .shot.offen .mehr { display: none; }
+  .skizze { background: #0f0f11; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+  .skizze svg { display: block; width: 100%; height: auto; }
+  .shot .skizze { margin-left: -40px; }
+  .anl { font-size: 14px; margin: 6px 0; }
+  .anl b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--mute); }
+  .anl.achtung b { color: var(--muss); }
+  .zu { font-size: 13px; color: var(--accent); background: none; border: 0; padding: 4px 0; cursor: pointer; }
+  .skizze { cursor: zoom-in; }
+  #gross { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.95); display: flex; align-items: center; justify-content: center; overflow: auto; }
+  #gross svg { width: 100%; height: auto; max-height: 100%; }
+  #gross .hint { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 14px); left: 0; right: 0; text-align: center; color: var(--mute); font-size: 13px; pointer-events: none; }
+  #gross .hint span { background: rgba(0,0,0,.7); padding: 4px 10px; border-radius: 8px; }
+  .gruppe { font-size: 13px; color: var(--mute); margin: 14px 0 0; }
   .foot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
   .foot .btn { font-size: 14px; }
 </style>
@@ -204,6 +226,7 @@
   const sichtbareShots = (d) => d.shots.filter((s) => s.status !== 'verworfen');
 
   let filter = store.get('shotlist.filter') || 'alle';
+  const offen = {};
 
   function wie(s) {
     const w = [EINST[s.einstellung] || s.einstellung, s.bewegung];
@@ -225,7 +248,24 @@
         <div class="was">${esc(s.was)}</div>
         <div class="wie">${esc(wie(s))}</div>
         ${s.hinweis ? `<div class="hinweis">↳ ${esc(s.hinweis)}</div>` : ''}
+        ${hatDetail(s) ? `<div class="mehr">▸ Skizze und Anleitung</div><div class="detail">${detailHTML(s)}</div>` : ''}
       </div></div>`;
+  }
+
+  const ANL = [['position', 'Position'], ['kamera', 'Kamera'], ['ablauf', 'Ablauf'], ['achtung', 'Achtung']];
+  // Weitere Felder (z. B. hoehe, licht, tipp) werden danach in ihrer Reihenfolge angezeigt.
+  const hatDetail = (s) => !!(s.skizze || (s.anleitung && Object.keys(s.anleitung).length));
+  function detailHTML(s) {
+    const a = s.anleitung || {};
+    const zeile = (k, t) => {
+      const v = a[k];
+      if (!v) return '';
+      const text = Array.isArray(v) ? v.map(esc).join('<br>') : esc(v);
+      return `<p class="anl${k === 'achtung' ? ' achtung' : ''}"><b>${t}</b>${text}</p>`;
+    };
+    return (s.skizze ? `<div class="skizze">${s.skizze}</div>` : '') +
+      [...ANL, ...Object.keys(a).filter((k) => !ANL.some(([x]) => x === k)).map((k) => [k, k.charAt(0).toUpperCase() + k.slice(1)])]
+        .map(([k, t]) => zeile(k, t)).join('') + '<button class="zu" type="button">▴ Zuklappen</button>';
   }
 
   // Minimales Markdown für die Dreh-Tipps: ## Überschrift, - Liste, **fett**
@@ -248,6 +288,14 @@
     const muss = shots.filter((s) => s.prioritaet === 'muss');
     const mussFertig = muss.filter((s) => h[s.id]).length;
     const fertig = shots.filter((s) => h[s.id]).length;
+    const todos = (d._aufgaben || []).flatMap((g) => g.punkte);
+    const todosFertig = todos.filter((t) => h[t.id]).length;
+    const todoHTML = (d._aufgaben || []).map((g) => {
+      const punkte = g.punkte.filter((t) => filter !== 'offen' || !h[t.id]);
+      if (!punkte.length) return '';
+      return `<p class="gruppe">${esc(g.gruppe)}</p>` + punkte.map((t) =>
+        `<div class="todo${h[t.id] ? ' done' : ''}" data-id="${esc(t.id)}" role="checkbox" aria-checked="${!!h[t.id]}" tabindex="0"><span class="box"></span><span>${esc(t.text)}</span></div>`).join('');
+    }).join('');
 
     const akte = d.akte.map((a) => {
       const liste = shots.filter((s) => s.akt === a.id && passt(s)).sort((x, y) => (PRIO[x.prioritaet] ?? 9) - (PRIO[y.prioritaet] ?? 9));
@@ -265,16 +313,29 @@
           <b style="flex:1">${esc(d.titel || d.projekt)}</b>
         </div>
         <div class="progress"><i style="width:${shots.length ? (fertig / shots.length) * 100 : 0}%"></i></div>
-        <div class="stats"><span>${fertig} von ${shots.length} erledigt</span><span>🔴 Muss ${mussFertig}/${muss.length}</span></div>
+        <div class="stats"><span>${fertig} von ${shots.length} erledigt</span><span>${todos.length ? `✅ To-dos ${todosFertig}/${todos.length} · ` : ''}🔴 Muss ${mussFertig}/${muss.length}</span></div>
         <div class="filters">${chip('alle', 'Alle')}${chip('offen', 'Nur offene')}${chip('muss', 'Nur Muss')}</div>
       </div>
       <p class="meta" style="margin-top:12px">${esc([d.datum, d.ort].filter(Boolean).join(' · '))}</p>
       ${d.aufnahme?.standard ? `<p class="meta">${esc(d.aufnahme.standard)}</p>` : ''}
+      ${d.location && (d.location.skizze || d.location.notizen?.length) ? `<details><summary>Lageplan und Location</summary>${d.location.skizze ? `<div class="skizze" style="margin-top:10px">${d.location.skizze}</div>` : ''}<ul>${(d.location.notizen || []).map((n) => `<li>${esc(n)}</li>`).join('')}</ul></details>` : ''}
+      ${todos.length && filter !== 'muss' ? `<h2><span>Deine To-dos</span><small>${todosFertig}/${todos.length}</small></h2>${todoHTML || '<p class="meta">Alle To-dos erledigt.</p>'}` : ''}
       ${akte || '<p class="meta" style="margin-top:24px">Alles erledigt 🎉</p>'}
       ${d._tipps ? '<h2><span>Tipps</span></h2>' + tippsHTML(d._tipps) : ''}
       ${fussleiste(true)}`;
 
-    $('#app').querySelectorAll('.shot').forEach((el) => {
+    $('#app').querySelectorAll('.shot, .todo').forEach((el) => {
+      if (el.classList.contains('shot') && el.querySelector('.detail')) {
+        // Mit Skizze: Haken nur über das Kästchen, Karte antippen klappt auf/zu.
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.box')) return;
+          if (e.target.closest('.detail') && !e.target.closest('.zu')) return;
+          e.stopImmediatePropagation();
+          el.classList.toggle('offen');
+          offen[el.dataset.id] = el.classList.contains('offen');
+        }, true);
+        if (offen[el.dataset.id]) el.classList.add('offen');
+      }
       const toggle = () => {
         const hh = haken(d.projekt);
         hh[el.dataset.id] ? delete hh[el.dataset.id] : (hh[el.dataset.id] = Date.now());
@@ -307,6 +368,19 @@
     const s = $('#sperren');
     if (s) s.addEventListener('click', () => { store.del(PW_KEY); passwort = null; listen = []; zeigeSperre(); });
   }
+
+  // Skizze antippen: groß anzeigen (Handy quer drehen für mehr Platz). Antippen schließt.
+  document.addEventListener('click', (e) => {
+    const sk = e.target.closest('.skizze');
+    if (sk) {
+      e.stopPropagation();
+      const g = document.createElement('div');
+      g.id = 'gross';
+      g.innerHTML = sk.innerHTML + '<div class="hint"><span>Handy quer drehen · antippen zum Schließen</span></div>';
+      g.addEventListener('click', () => g.remove());
+      document.body.appendChild(g);
+    }
+  }, true);
 
   laden().catch((e) => {
     $('#app').classList.remove('hidden');
