@@ -88,6 +88,18 @@
   .todo.done .box { background: var(--ok); border-color: var(--ok); }
   .todo.done .box::after { content: ""; width: 8px; height: 14px; border: solid #0b0b0c; border-width: 0 3px 3px 0; transform: rotate(45deg) translate(-1px, -2px); }
   .todo.done span:last-child { opacity: .45; text-decoration: line-through; }
+  .shot .box { cursor: pointer; }
+  .mehr { font-size: 13px; color: var(--accent); margin-top: 6px; }
+  .detail { display: none; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; cursor: default; }
+  .shot.offen .detail { display: block; }
+  .shot.offen .mehr { display: none; }
+  .skizze { background: #0f0f11; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+  .skizze svg { display: block; width: 100%; height: auto; }
+  .shot .skizze { margin-left: -40px; }
+  .anl { font-size: 14px; margin: 6px 0; }
+  .anl b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--mute); }
+  .anl.achtung b { color: var(--muss); }
+  .zu { font-size: 13px; color: var(--accent); background: none; border: 0; padding: 4px 0; cursor: pointer; }
   .gruppe { font-size: 13px; color: var(--mute); margin: 14px 0 0; }
   .foot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
   .foot .btn { font-size: 14px; }
@@ -209,6 +221,7 @@
   const sichtbareShots = (d) => d.shots.filter((s) => s.status !== 'verworfen');
 
   let filter = store.get('shotlist.filter') || 'alle';
+  const offen = {};
 
   function wie(s) {
     const w = [EINST[s.einstellung] || s.einstellung, s.bewegung];
@@ -230,7 +243,24 @@
         <div class="was">${esc(s.was)}</div>
         <div class="wie">${esc(wie(s))}</div>
         ${s.hinweis ? `<div class="hinweis">↳ ${esc(s.hinweis)}</div>` : ''}
+        ${hatDetail(s) ? `<div class="mehr">▸ Skizze und Anleitung</div><div class="detail">${detailHTML(s)}</div>` : ''}
       </div></div>`;
+  }
+
+  const ANL = [['position', 'Position'], ['kamera', 'Kamera'], ['ablauf', 'Ablauf'], ['achtung', 'Achtung']];
+  // Weitere Felder (z. B. hoehe, licht, tipp) werden danach in ihrer Reihenfolge angezeigt.
+  const hatDetail = (s) => !!(s.skizze || (s.anleitung && Object.keys(s.anleitung).length));
+  function detailHTML(s) {
+    const a = s.anleitung || {};
+    const zeile = (k, t) => {
+      const v = a[k];
+      if (!v) return '';
+      const text = Array.isArray(v) ? v.map(esc).join('<br>') : esc(v);
+      return `<p class="anl${k === 'achtung' ? ' achtung' : ''}"><b>${t}</b>${text}</p>`;
+    };
+    return (s.skizze ? `<div class="skizze">${s.skizze}</div>` : '') +
+      [...ANL, ...Object.keys(a).filter((k) => !ANL.some(([x]) => x === k)).map((k) => [k, k.charAt(0).toUpperCase() + k.slice(1)])]
+        .map(([k, t]) => zeile(k, t)).join('') + '<button class="zu" type="button">▴ Zuklappen</button>';
   }
 
   // Minimales Markdown für die Dreh-Tipps: ## Überschrift, - Liste, **fett**
@@ -283,12 +313,24 @@
       </div>
       <p class="meta" style="margin-top:12px">${esc([d.datum, d.ort].filter(Boolean).join(' · '))}</p>
       ${d.aufnahme?.standard ? `<p class="meta">${esc(d.aufnahme.standard)}</p>` : ''}
+      ${d.location && (d.location.skizze || d.location.notizen?.length) ? `<details><summary>Lageplan und Location</summary>${d.location.skizze ? `<div class="skizze" style="margin-top:10px">${d.location.skizze}</div>` : ''}<ul>${(d.location.notizen || []).map((n) => `<li>${esc(n)}</li>`).join('')}</ul></details>` : ''}
       ${todos.length && filter !== 'muss' ? `<h2><span>Deine To-dos</span><small>${todosFertig}/${todos.length}</small></h2>${todoHTML || '<p class="meta">Alle To-dos erledigt.</p>'}` : ''}
       ${akte || '<p class="meta" style="margin-top:24px">Alles erledigt 🎉</p>'}
       ${d._tipps ? '<h2><span>Tipps</span></h2>' + tippsHTML(d._tipps) : ''}
       ${fussleiste(true)}`;
 
     $('#app').querySelectorAll('.shot, .todo').forEach((el) => {
+      if (el.classList.contains('shot') && el.querySelector('.detail')) {
+        // Mit Skizze: Haken nur über das Kästchen, Karte antippen klappt auf/zu.
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.box')) return;
+          if (e.target.closest('.detail') && !e.target.closest('.zu')) return;
+          e.stopImmediatePropagation();
+          el.classList.toggle('offen');
+          offen[el.dataset.id] = el.classList.contains('offen');
+        }, true);
+        if (offen[el.dataset.id]) el.classList.add('offen');
+      }
       const toggle = () => {
         const hh = haken(d.projekt);
         hh[el.dataset.id] ? delete hh[el.dataset.id] : (hh[el.dataset.id] = Date.now());

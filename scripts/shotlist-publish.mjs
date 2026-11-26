@@ -82,7 +82,25 @@ if (fs.existsSync(aufgabenMd)) {
   aufgaben = aufgaben.filter((g) => g.punkte.length);
 }
 
-const SHOT_FELDER = ['id', 'akt', 'prioritaet', 'einmalig', 'medium', 'was', 'einstellung', 'bewegung', 'fps', 'dauer_s', 'ton_wichtig', 'hinweis', 'status'];
+const SHOT_FELDER = ['id', 'akt', 'prioritaet', 'einmalig', 'medium', 'was', 'einstellung', 'bewegung', 'fps', 'dauer_s', 'ton_wichtig', 'hinweis', 'status', 'anleitung'];
+
+// Skizzen: SVG-Datei (Pfad relativ zur shotlist.json) wird eingebettet und entschärft.
+const planDir = path.dirname(quelle);
+function skizze(rel) {
+  if (!rel) return undefined;
+  const datei = path.resolve(planDir, rel);
+  if (!fs.existsSync(datei)) { console.warn('Skizze fehlt: ' + rel); return undefined; }
+  let svg = fs.readFileSync(datei, 'utf8')
+    .replace(/<\?xml[^>]*>/gi, '').replace(/<!DOCTYPE[^>]*>/gi, '').replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s(?:xlink:)?href\s*=\s*("(?!#)[^"]*"|'(?!#)[^']*')/gi, '')
+    .replace(/url\(\s*['"]?(?!#)[^)]*\)/gi, 'none')
+    .replace(/@import[^;]*;/gi, '')
+    .trim();
+  if (!/^<svg[\s>]/i.test(svg)) { console.warn('Keine gültige SVG: ' + rel); return undefined; }
+  return svg;
+}
 const daten = {
   projekt: d.projekt,
   titel: d.titel,
@@ -90,7 +108,8 @@ const daten = {
   ort: d.ort,
   aufnahme: { standard: d.aufnahme?.standard },
   akte: d.akte.map(({ id, name, uhrzeit }) => ({ id, name, uhrzeit })),
-  shots: d.shots.map((s) => Object.fromEntries(SHOT_FELDER.filter((k) => k in s).map((k) => [k, s[k]]))),
+  shots: d.shots.map((s) => ({ ...Object.fromEntries(SHOT_FELDER.filter((k) => k in s).map((k) => [k, s[k]])), skizze: skizze(s.skizze) })),
+  location: d.location ? { notizen: d.location.notizen, skizze: skizze(d.location.skizze) } : undefined,
   _tipps: tipps || undefined,
   _aufgaben: aufgaben,
 };
