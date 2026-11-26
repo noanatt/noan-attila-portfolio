@@ -94,10 +94,22 @@ const SHOT_FELDER = ['id', 'akt', 'prioritaet', 'einmalig', 'medium', 'was', 'ei
 
 // Skizzen: SVG-Datei (Pfad relativ zur shotlist.json) wird eingebettet und entschärft.
 const planDir = path.dirname(quelle);
-function skizze(rel) {
+// PNG/JPG/WebP werden (falls `sharp` installiert ist: npm ci) auf 1600 px Breite als WebP
+// verkleinert und als data-URI eingebettet, damit alles in der verschlüsselten Datei bleibt.
+let sharp;
+try { sharp = (await import('sharp')).default; } catch { sharp = null; }
+const RASTER = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
+async function skizze(rel) {
   if (!rel) return undefined;
   const datei = path.resolve(planDir, rel);
   if (!fs.existsSync(datei)) { console.warn('Skizze fehlt: ' + rel); return undefined; }
+  const ext = path.extname(datei).toLowerCase();
+  if (RASTER[ext]) {
+    let buf = fs.readFileSync(datei), mime = RASTER[ext];
+    if (sharp) { buf = await sharp(buf).resize({ width: 1600, withoutEnlargement: true }).webp({ quality: 78 }).toBuffer(); mime = 'image/webp'; }
+    else console.warn('sharp nicht installiert, Bild wird unverkleinert eingebettet: ' + rel);
+    return `data:${mime};base64,${buf.toString('base64')}`;
+  }
   let svg = fs.readFileSync(datei, 'utf8')
     .replace(/<\?xml[^>]*>/gi, '').replace(/<!DOCTYPE[^>]*>/gi, '').replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
@@ -116,8 +128,8 @@ const daten = {
   ort: d.ort,
   aufnahme: { standard: d.aufnahme?.standard },
   akte: d.akte.map(({ id, name, uhrzeit }) => ({ id, name, uhrzeit })),
-  shots: d.shots.map((s) => ({ ...Object.fromEntries(SHOT_FELDER.filter((k) => k in s).map((k) => [k, s[k]])), skizze: skizze(s.skizze) })),
-  location: d.location ? { notizen: d.location.notizen, skizze: skizze(d.location.skizze) } : undefined,
+  shots: await Promise.all(d.shots.map(async (s) => ({ ...Object.fromEntries(SHOT_FELDER.filter((k) => k in s).map((k) => [k, s[k]])), skizze: await skizze(s.skizze) }))),
+  location: d.location ? { notizen: d.location.notizen, skizze: await skizze(d.location.skizze) } : undefined,
   _tipps: tipps || undefined,
   _aufgaben: aufgaben,
 };

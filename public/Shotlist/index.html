@@ -94,7 +94,7 @@
   .shot.offen .detail { display: block; }
   .shot.offen .mehr { display: none; }
   .skizze { background: #0f0f11; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
-  .skizze svg { display: block; width: 100%; height: auto; }
+  .skizze svg, .skizze img { display: block; width: 100%; height: auto; }
   .shot .skizze { margin-left: -40px; margin-right: -12px; }
   .lupe { font-size: 12px; color: var(--mute); margin: -4px 0 10px; text-align: center; }
   .anl { font-size: 14px; margin: 6px 0; }
@@ -103,7 +103,7 @@
   .zu { font-size: 13px; color: var(--accent); background: none; border: 0; padding: 4px 0; cursor: pointer; }
   .skizze { cursor: zoom-in; }
   #gross { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.95); display: flex; align-items: center; justify-content: center; overflow: auto; }
-  #gross svg { width: 100%; height: auto; max-height: 100%; }
+  #gross svg, #gross img { width: 100%; height: auto; max-height: 100%; object-fit: contain; }
   #gross .hint { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 14px); left: 0; right: 0; text-align: center; color: var(--mute); font-size: 13px; pointer-events: none; }
   #gross .hint span { background: rgba(0,0,0,.7); padding: 4px 10px; border-radius: 8px; }
   .gruppe { font-size: 13px; color: var(--mute); margin: 14px 0 0; }
@@ -255,6 +255,8 @@
 
   const ANL = [['position', 'Position'], ['kamera', 'Kamera'], ['ablauf', 'Ablauf'], ['achtung', 'Achtung']];
   // Weitere Felder (z. B. hoehe, licht, tipp) werden danach in ihrer Reihenfolge angezeigt.
+  // Skizze ist entweder eingebettete SVG oder ein Bild als data-URI.
+  const bild = (k) => /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(k) ? `<img src="${k}" alt="Skizze" loading="lazy">` : (k.startsWith('<svg') ? k : '');
   const hatDetail = (s) => !!(s.skizze || (s.anleitung && Object.keys(s.anleitung).length));
   function detailHTML(s) {
     const a = s.anleitung || {};
@@ -264,7 +266,7 @@
       const text = Array.isArray(v) ? v.map(esc).join('<br>') : esc(v);
       return `<p class="anl${k === 'achtung' ? ' achtung' : ''}"><b>${t}</b>${text}</p>`;
     };
-    return (s.skizze ? `<div class="skizze">${s.skizze}</div><p class="lupe">Skizze antippen für Vollbild · Handy quer drehen</p>` : '') +
+    return (s.skizze ? `<div class="skizze">${bild(s.skizze)}</div><p class="lupe">Skizze antippen für Vollbild · Handy quer drehen</p>` : '') +
       [...ANL, ...Object.keys(a).filter((k) => !ANL.some(([x]) => x === k)).map((k) => [k, k.charAt(0).toUpperCase() + k.slice(1)])]
         .map(([k, t]) => zeile(k, t)).join('') + '<button class="zu" type="button">▴ Zuklappen</button>';
   }
@@ -319,7 +321,7 @@
       </div>
       <p class="meta" style="margin-top:12px">${esc([d.datum, d.ort].filter(Boolean).join(' · '))}</p>
       ${d.aufnahme?.standard ? `<p class="meta">${esc(d.aufnahme.standard)}</p>` : ''}
-      ${d.location && (d.location.skizze || d.location.notizen?.length) ? `<details><summary>Lageplan und Location</summary>${d.location.skizze ? `<div class="skizze" style="margin-top:10px">${d.location.skizze}</div>` : ''}<ul>${(d.location.notizen || []).map((n) => `<li>${esc(n)}</li>`).join('')}</ul></details>` : ''}
+      ${d.location && (d.location.skizze || d.location.notizen?.length) ? `<details><summary>Lageplan und Location</summary>${d.location.skizze ? `<div class="skizze" style="margin-top:10px">${bild(d.location.skizze)}</div>` : ''}<ul>${(d.location.notizen || []).map((n) => `<li>${esc(n)}</li>`).join('')}</ul></details>` : ''}
       ${todos.length && filter !== 'muss' ? `<h2><span>Deine To-dos</span><small>${todosFertig}/${todos.length}</small></h2>${todoHTML || '<p class="meta">Alle To-dos erledigt.</p>'}` : ''}
       ${d._tipps && filter === 'alle' ? '<h2><span>Kamera und Tipps</span></h2>' + tippsHTML(d._tipps) : ''}
       ${akte || '<p class="meta" style="margin-top:24px">Alles erledigt 🎉</p>'}
