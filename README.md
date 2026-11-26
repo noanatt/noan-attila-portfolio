@@ -123,3 +123,13 @@ Version online. Den Fortschritt siehst du im Repository unter *Actions*.
    git commit -m "Neue Fotos"
    git push
    ```
+
+## Private Shotlist (/Shotlist/)
+
+`public/Shotlist/` ist eine eigenständige, nicht verlinkte Seite (noindex, nicht in der Sitemap) zum Abhaken von Dreh-Listen auf dem Handy. Neue Liste aus dem Storyboard-Skill ablegen:
+
+```bash
+SHOTLIST_PASSWORT=… node scripts/shotlist-publish.mjs "<Projektordner>/00_Plan/shotlist.json"
+```
+
+Die Daten werden verschlüsselt (das Repo ist öffentlich). Abgehakte Shots speichert nur der Browser des Handys.
