@@ -5,6 +5,7 @@
  *   SHOTLIST_PASSWORT=… node scripts/shotlist-publish.mjs <pfad>/shotlist.json
  *   node scripts/shotlist-publish.mjs <pfad>/shotlist.json --ohne-passwort
  *   node scripts/shotlist-publish.mjs --entfernen <projekt>
+ *   … --tipps <datei.md>      (eigene Tipps, z. B. Kamera-Guide; ersetzt die Tipps aus shotlist_dreh.md)
  *   … --aufgaben <datei.md>   (sonst wird aufgaben.md neben der shotlist.json genommen, falls vorhanden)
  *
  * - Liest shotlist.json und (falls vorhanden) die Tipps unten aus shotlist_dreh.md daneben.
@@ -43,7 +44,7 @@ if (args[0] === '--entfernen') {
   process.exit(0);
 }
 
-const quelle = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--aufgaben') || fail('Pfad zur shotlist.json fehlt');
+const quelle = args.find((a, i) => !a.startsWith('--') && !['--aufgaben', '--tipps'].includes(args[i - 1])) || fail('Pfad zur shotlist.json fehlt');
 const ohnePw = args.includes('--ohne-passwort');
 const passwort = process.env.SHOTLIST_PASSWORT;
 if (!ohnePw && !passwort) fail('SHOTLIST_PASSWORT setzen oder --ohne-passwort angeben');
@@ -80,6 +81,13 @@ if (fs.existsSync(aufgabenMd)) {
     }
   }
   aufgaben = aufgaben.filter((g) => g.punkte.length);
+}
+
+const tIdx = args.indexOf('--tipps');
+if (tIdx >= 0) {
+  const tDatei = args[tIdx + 1];
+  if (!tDatei || !fs.existsSync(tDatei)) fail('Tipps-Datei nicht gefunden: ' + tDatei);
+  tipps = fs.readFileSync(tDatei, 'utf8').trim(); // ersetzt die Tipps aus shotlist_dreh.md
 }
 
 const SHOT_FELDER = ['id', 'akt', 'prioritaet', 'einmalig', 'medium', 'was', 'einstellung', 'bewegung', 'fps', 'dauer_s', 'ton_wichtig', 'hinweis', 'status', 'anleitung'];

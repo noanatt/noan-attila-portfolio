@@ -321,8 +321,8 @@
       ${d.aufnahme?.standard ? `<p class="meta">${esc(d.aufnahme.standard)}</p>` : ''}
       ${d.location && (d.location.skizze || d.location.notizen?.length) ? `<details><summary>Lageplan und Location</summary>${d.location.skizze ? `<div class="skizze" style="margin-top:10px">${d.location.skizze}</div>` : ''}<ul>${(d.location.notizen || []).map((n) => `<li>${esc(n)}</li>`).join('')}</ul></details>` : ''}
       ${todos.length && filter !== 'muss' ? `<h2><span>Deine To-dos</span><small>${todosFertig}/${todos.length}</small></h2>${todoHTML || '<p class="meta">Alle To-dos erledigt.</p>'}` : ''}
+      ${d._tipps && filter === 'alle' ? '<h2><span>Kamera und Tipps</span></h2>' + tippsHTML(d._tipps) : ''}
       ${akte || '<p class="meta" style="margin-top:24px">Alles erledigt 🎉</p>'}
-      ${d._tipps ? '<h2><span>Tipps</span></h2>' + tippsHTML(d._tipps) : ''}
       ${fussleiste(true)}`;
 
     $('#app').querySelectorAll('.shot, .todo').forEach((el) => {
