@@ -100,6 +100,11 @@
   .anl b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--mute); }
   .anl.achtung b { color: var(--muss); }
   .zu { font-size: 13px; color: var(--accent); background: none; border: 0; padding: 4px 0; cursor: pointer; }
+  .skizze { cursor: zoom-in; }
+  #gross { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.95); display: flex; align-items: center; justify-content: center; overflow: auto; }
+  #gross svg { width: 100%; height: auto; max-height: 100%; }
+  #gross .hint { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 14px); left: 0; right: 0; text-align: center; color: var(--mute); font-size: 13px; pointer-events: none; }
+  #gross .hint span { background: rgba(0,0,0,.7); padding: 4px 10px; border-radius: 8px; }
   .gruppe { font-size: 13px; color: var(--mute); margin: 14px 0 0; }
   .foot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
   .foot .btn { font-size: 14px; }
@@ -363,6 +368,19 @@
     const s = $('#sperren');
     if (s) s.addEventListener('click', () => { store.del(PW_KEY); passwort = null; listen = []; zeigeSperre(); });
   }
+
+  // Skizze antippen: groß anzeigen (Handy quer drehen für mehr Platz). Antippen schließt.
+  document.addEventListener('click', (e) => {
+    const sk = e.target.closest('.skizze');
+    if (sk) {
+      e.stopPropagation();
+      const g = document.createElement('div');
+      g.id = 'gross';
+      g.innerHTML = sk.innerHTML + '<div class="hint"><span>Handy quer drehen · antippen zum Schließen</span></div>';
+      g.addEventListener('click', () => g.remove());
+      document.body.appendChild(g);
+    }
+  }, true);
 
   laden().catch((e) => {
     $('#app').classList.remove('hidden');
