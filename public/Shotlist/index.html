@@ -84,6 +84,11 @@
   summary { font-weight: 600; cursor: pointer; }
   details ul { padding-left: 18px; margin: 8px 0 0; }
   details li { margin: 6px 0; font-size: 15px; }
+  .todo { display: flex; gap: 12px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 12px; padding: 12px 12px 12px 10px; margin: 8px 0; cursor: pointer; user-select: none; font-size: 16px; }
+  .todo.done .box { background: var(--ok); border-color: var(--ok); }
+  .todo.done .box::after { content: ""; width: 8px; height: 14px; border: solid #0b0b0c; border-width: 0 3px 3px 0; transform: rotate(45deg) translate(-1px, -2px); }
+  .todo.done span:last-child { opacity: .45; text-decoration: line-through; }
+  .gruppe { font-size: 13px; color: var(--mute); margin: 14px 0 0; }
   .foot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
   .foot .btn { font-size: 14px; }
 </style>
@@ -248,6 +253,14 @@
     const muss = shots.filter((s) => s.prioritaet === 'muss');
     const mussFertig = muss.filter((s) => h[s.id]).length;
     const fertig = shots.filter((s) => h[s.id]).length;
+    const todos = (d._aufgaben || []).flatMap((g) => g.punkte);
+    const todosFertig = todos.filter((t) => h[t.id]).length;
+    const todoHTML = (d._aufgaben || []).map((g) => {
+      const punkte = g.punkte.filter((t) => filter !== 'offen' || !h[t.id]);
+      if (!punkte.length) return '';
+      return `<p class="gruppe">${esc(g.gruppe)}</p>` + punkte.map((t) =>
+        `<div class="todo${h[t.id] ? ' done' : ''}" data-id="${esc(t.id)}" role="checkbox" aria-checked="${!!h[t.id]}" tabindex="0"><span class="box"></span><span>${esc(t.text)}</span></div>`).join('');
+    }).join('');
 
     const akte = d.akte.map((a) => {
       const liste = shots.filter((s) => s.akt === a.id && passt(s)).sort((x, y) => (PRIO[x.prioritaet] ?? 9) - (PRIO[y.prioritaet] ?? 9));
@@ -265,16 +278,17 @@
           <b style="flex:1">${esc(d.titel || d.projekt)}</b>
         </div>
         <div class="progress"><i style="width:${shots.length ? (fertig / shots.length) * 100 : 0}%"></i></div>
-        <div class="stats"><span>${fertig} von ${shots.length} erledigt</span><span>🔴 Muss ${mussFertig}/${muss.length}</span></div>
+        <div class="stats"><span>${fertig} von ${shots.length} erledigt</span><span>${todos.length ? `✅ To-dos ${todosFertig}/${todos.length} · ` : ''}🔴 Muss ${mussFertig}/${muss.length}</span></div>
         <div class="filters">${chip('alle', 'Alle')}${chip('offen', 'Nur offene')}${chip('muss', 'Nur Muss')}</div>
       </div>
       <p class="meta" style="margin-top:12px">${esc([d.datum, d.ort].filter(Boolean).join(' · '))}</p>
       ${d.aufnahme?.standard ? `<p class="meta">${esc(d.aufnahme.standard)}</p>` : ''}
+      ${todos.length && filter !== 'muss' ? `<h2><span>Deine To-dos</span><small>${todosFertig}/${todos.length}</small></h2>${todoHTML || '<p class="meta">Alle To-dos erledigt.</p>'}` : ''}
       ${akte || '<p class="meta" style="margin-top:24px">Alles erledigt 🎉</p>'}
       ${d._tipps ? '<h2><span>Tipps</span></h2>' + tippsHTML(d._tipps) : ''}
       ${fussleiste(true)}`;
 
-    $('#app').querySelectorAll('.shot').forEach((el) => {
+    $('#app').querySelectorAll('.shot, .todo').forEach((el) => {
       const toggle = () => {
         const hh = haken(d.projekt);
         hh[el.dataset.id] ? delete hh[el.dataset.id] : (hh[el.dataset.id] = Date.now());
