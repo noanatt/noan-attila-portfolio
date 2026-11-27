@@ -94,7 +94,7 @@ const SHOT_FELDER = ['id', 'akt', 'prioritaet', 'einmalig', 'medium', 'was', 'ei
 
 // Skizzen: SVG-Datei (Pfad relativ zur shotlist.json) wird eingebettet und entschärft.
 const planDir = path.dirname(quelle);
-// PNG/JPG/WebP werden (falls `sharp` installiert ist: npm ci) auf 1600 px Breite als WebP
+// PNG/JPG/WebP werden (falls `sharp` installiert ist: npm ci) auf 1400 px Breite als WebP
 // verkleinert und als data-URI eingebettet, damit alles in der verschlüsselten Datei bleibt.
 let sharp;
 try { sharp = (await import('sharp')).default; } catch { sharp = null; }
@@ -106,7 +106,7 @@ async function skizze(rel) {
   const ext = path.extname(datei).toLowerCase();
   if (RASTER[ext]) {
     let buf = fs.readFileSync(datei), mime = RASTER[ext];
-    if (sharp) { buf = await sharp(buf).resize({ width: 1600, withoutEnlargement: true }).webp({ quality: 78 }).toBuffer(); mime = 'image/webp'; }
+    if (sharp) { buf = await sharp(buf).resize({ width: 1400, withoutEnlargement: true }).webp({ quality: 70 }).toBuffer(); mime = 'image/webp'; }
     else console.warn('sharp nicht installiert, Bild wird unverkleinert eingebettet: ' + rel);
     return `data:${mime};base64,${buf.toString('base64')}`;
   }
