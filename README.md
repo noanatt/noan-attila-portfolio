@@ -132,6 +132,6 @@ Version online. Den Fortschritt siehst du im Repository unter *Actions*.
 SHOTLIST_PASSWORT=… node scripts/shotlist-publish.mjs "<Projektordner>/00_Plan/shotlist.json"
 ```
 
-To-dos für Noan kommen aus `aufgaben.md` neben der shotlist.json (oder `--aufgaben <datei.md>`): `## Gruppe`, darunter `- [ ] Schritt`.
+Zusätzliche Tipps (z. B. Kamera-Guide) mit `--tipps <datei.md>`. To-dos für Noan kommen aus `aufgaben.md` neben der shotlist.json (oder `--aufgaben <datei.md>`): `## Gruppe`, darunter `- [ ] Schritt`.
 
 Die Daten werden verschlüsselt (das Repo ist öffentlich). Abgehakte Shots speichert nur der Browser des Handys.
