@@ -108,6 +108,10 @@
   #gross .hint span { background: rgba(0,0,0,.7); padding: 4px 10px; border-radius: 8px; }
   #gross .hint { animation: hintweg 3s forwards; }
   @keyframes hintweg { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+  .kam-kurz { font-size: 13px; color: #9fd3ff; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .kam { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; background: #0f1a24; border: 1px solid #1f3446; border-radius: 10px; padding: 10px 12px; margin: 0 0 10px; font-size: 14px; }
+  .kam dt { color: var(--mute); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; padding-top: 2px; }
+  .kam dd { margin: 0; }
   .gruppe { font-size: 13px; color: var(--mute); margin: 14px 0 0; }
   .foot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
   .foot .btn { font-size: 14px; }
@@ -250,8 +254,9 @@
         <div class="kopf"><span class="id">${esc(s.id)}</span><span>${esc(s.prioritaet)}</span>${tags.join('')}</div>
         <div class="was">${esc(s.was)}</div>
         <div class="wie">${esc(wie(s))}</div>
+        ${s.kamera ? `<div class="kam-kurz">📷 ${esc(s.kamera.kurz)}</div>` : ''}
         ${s.hinweis ? `<div class="hinweis">↳ ${esc(s.hinweis)}</div>` : ''}
-        ${hatDetail(s) ? `<div class="mehr">▸ Skizze und Anleitung</div><div class="detail">${detailHTML(s)}</div>` : ''}
+        ${hatDetail(s) ? `<div class="mehr">▸ Einstellungen, Skizze und Anleitung</div><div class="detail">${detailHTML(s)}</div>` : ''}
       </div></div>`;
   }
 
@@ -259,7 +264,7 @@
   // Weitere Felder (z. B. hoehe, licht, tipp) werden danach in ihrer Reihenfolge angezeigt.
   // Skizze ist entweder eingebettete SVG oder ein Bild als data-URI.
   const bild = (k) => /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(k) ? `<img src="${k}" alt="Skizze" loading="lazy">` : (k.startsWith('<svg') ? k : '');
-  const hatDetail = (s) => !!(s.skizze || (s.anleitung && Object.keys(s.anleitung).length));
+  const hatDetail = (s) => !!(s.skizze || s.kamera || (s.anleitung && Object.keys(s.anleitung).length));
   function detailHTML(s) {
     const a = s.anleitung || {};
     const zeile = (k, t) => {
@@ -268,7 +273,8 @@
       const text = Array.isArray(v) ? v.map(esc).join('<br>') : esc(v);
       return `<p class="anl${k === 'achtung' ? ' achtung' : ''}"><b>${t}</b>${text}</p>`;
     };
-    return (s.skizze ? `<div class="skizze">${bild(s.skizze)}</div><p class="lupe">Skizze antippen für Vollbild · Handy quer drehen</p>` : '') +
+    const kam = s.kamera ? `<dl class="kam">${s.kamera.liste.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : '';
+    return kam + (s.skizze ? `<div class="skizze">${bild(s.skizze)}</div><p class="lupe">Skizze antippen für Vollbild · Handy quer drehen</p>` : '') +
       [...ANL, ...Object.keys(a).filter((k) => !ANL.some(([x]) => x === k)).map((k) => [k, k.charAt(0).toUpperCase() + k.slice(1)])]
         .map(([k, t]) => zeile(k, t)).join('') + '<button class="zu" type="button">▴ Zuklappen</button>';
   }
