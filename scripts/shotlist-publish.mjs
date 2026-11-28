@@ -121,6 +121,50 @@ async function skizze(rel) {
   if (!/^<svg[\s>]/i.test(svg)) { console.warn('Keine gültige SVG: ' + rel); return undefined; }
   return svg;
 }
+// Kameraeinstellungen pro Shot (Sony a6700). Ein Shot kann sie mit "kamera_einstellungen"
+// ({ "Schalter": "...", ... }) selbst vorgeben, sonst werden sie aus fps, Einstellung,
+// Bewegung, Ton und dem Kamera-Text der Anleitung abgeleitet.
+const KARTE = (d.aufnahme?.speicherkarte || 'V30').toUpperCase(); // V30: max. ca. 100 Mbit/s
+function kamera(s) {
+  if (s.kamera_einstellungen && typeof s.kamera_einstellungen === 'object') {
+    const e = Object.entries(s.kamera_einstellungen).map(([k, v]) => [k, String(v)]);
+    return { liste: e, kurz: e.slice(0, 4).map(([, v]) => v).join(' · ') };
+  }
+  const text = `${s.anleitung?.kamera || ''} ${s.anleitung?.ablauf || ''}`;
+  const sz = s.skizze_daten || {};
+  const fps = s.fps || (/\b25p\b/.test(text) ? 25 : /\b100p\b/.test(text) ? 100 : /\b50p\b/.test(text) ? 50 : 25);
+  const sq = fps >= 90;
+  const langsam = KARTE === 'V30' && sq;
+  const aufnahme = sq ? (langsam ? 'Full HD 100p (S&Q)' : '4K 100p (S&Q)') : `4K ${fps}p`;
+  const mm = text.match(/(\d{2})\s*(?:bis|–|-)\s*(\d{2})\s*mm/) || text.match(/(\d{2})\s*mm/);
+  const start = text.match(/Start\s*(\d{2})\s*mm/);
+  const brenn0 = mm ? (mm[2] ? `${mm[1]}–${mm[2]} mm` : `${mm[1]} mm`)
+    : ({ totale: '17 mm', halbtotale: '24 mm', halbnah: '35 mm', nah: '50 mm', detail: '70 mm', pov: '17 mm' }[s.einstellung] || '17–35 mm');
+  const brenn = /Brennweite egal/i.test(text) ? 'egal' : start && !brenn0.startsWith(start[1]) ? `${start[1]} → ${brenn0}` : brenn0;
+  const bl = text.match(/f\/\d(?:[.,]\d)?(?:\s*bis\s*f\/\d(?:[.,]\d)?)?/);
+  const blende = bl ? bl[0].replace(/\s*bis\s*/, '–') : 'f/2.8';
+  const draussen = sz.szene === 'aussen';
+  const b = `${s.bewegung || ''} ${sz.bewegung || ''}`.toLowerCase();
+  const bewegt = /geh|mit|durch|vor|zurueck|raus|hinein/.test(b);
+  const fokus = s.einstellung === 'detail' ? 'AF-C, aufs Objekt tippen'
+    : /mit/.test(b) ? 'AF-C, Person antippen (Tracking)' : 'AF-C, Gesicht/Auge';
+  const verschluss = fps >= 50 ? '1/100' : '1/50';
+  const liste = [
+    ['Schalter', sq ? 'S&Q, Bildrate 100' : 'Video'],
+    ['Aufnahme', aufnahme + (KARTE === 'V30' ? ' · max. 100M' : '')],
+    ['Verschluss', verschluss],
+    ['Blende', blende],
+    ['ISO', 'Auto (max. 12800)'],
+    ['Brennweite', brenn],
+    ['Fokus', fokus],
+    ['Weißabgleich', draussen ? 'Auto (draußen)' : '3200–4000 K fest'],
+    ['SteadyShot', bewegt ? 'Aktiv' : 'Standard'],
+    ['Ton', sq ? 'kein Ton (S&Q)' : s.ton_wichtig ? 'Mikro an, nah ran!' : 'Mikro an'],
+  ];
+  if (/Sony:\s*Fotos/i.test(text)) liste.unshift(['Hinweis', 'Sony fotografiert, das Handy filmt. Werte gelten fürs Video direkt danach.']);
+  return { liste, kurz: [sq ? 'S&Q' : 'Video', aufnahme.replace(' (S&Q)', ''), verschluss, blende, brenn].join(' · ') };
+}
+
 const daten = {
   projekt: d.projekt,
   titel: d.titel,
@@ -128,7 +172,7 @@ const daten = {
   ort: d.ort,
   aufnahme: { standard: d.aufnahme?.standard },
   akte: d.akte.map(({ id, name, uhrzeit }) => ({ id, name, uhrzeit })),
-  shots: await Promise.all(d.shots.map(async (s) => ({ ...Object.fromEntries(SHOT_FELDER.filter((k) => k in s).map((k) => [k, s[k]])), skizze: await skizze(s.skizze) }))),
+  shots: await Promise.all(d.shots.map(async (s) => ({ ...Object.fromEntries(SHOT_FELDER.filter((k) => k in s).map((k) => [k, s[k]])), skizze: await skizze(s.skizze), kamera: kamera(s) }))),
   location: d.location ? { notizen: d.location.notizen, skizze: await skizze(d.location.skizze) } : undefined,
   _tipps: tipps || undefined,
   _aufgaben: aufgaben,

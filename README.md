@@ -132,6 +132,6 @@ Version online. Den Fortschritt siehst du im Repository unter *Actions*.
 SHOTLIST_PASSWORT=… node scripts/shotlist-publish.mjs "<Projektordner>/00_Plan/shotlist.json"
 ```
 
-Zusätzliche Tipps (z. B. Kamera-Guide) mit `--tipps <datei.md>`. To-dos für Noan kommen aus `aufgaben.md` neben der shotlist.json (oder `--aufgaben <datei.md>`): `## Gruppe`, darunter `- [ ] Schritt`.
+Kameraeinstellungen pro Shot werden aus fps/Einstellung/Anleitung abgeleitet (Speicherkarte aus `aufnahme.speicherkarte`, Standard V30) oder per `kamera_einstellungen` im Shot vorgegeben. Zusätzliche Tipps (z. B. Kamera-Guide) mit `--tipps <datei.md>`. To-dos für Noan kommen aus `aufgaben.md` neben der shotlist.json (oder `--aufgaben <datei.md>`): `## Gruppe`, darunter `- [ ] Schritt`.
 
 Die Daten werden verschlüsselt (das Repo ist öffentlich). Abgehakte Shots speichert nur der Browser des Handys.
